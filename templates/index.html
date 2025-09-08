@@ -54,6 +54,7 @@
     </style>
 </head>
 <body>
+    {% raw %}
     <div id="app">
         <!-- Offcanvas Navigation -->
         <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNav" aria-labelledby="offcanvasNavLabel">
@@ -484,5 +485,6 @@
         app.use(router);
         app.mount('#app');
     </script>
+    {% endraw %}
 </body>
 </html>
