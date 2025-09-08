@@ -55,6 +55,9 @@
         .fade-enter-from, .fade-leave-to {
             opacity: 0;
         }
+        .nav-link.active {
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -69,13 +72,13 @@
             <div class="offcanvas-body">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <router-link to="/" class="nav-link" @click="hideOffcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
+                        <router-link to="/" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
                     </li>
                     <li class="nav-item">
-                        <router-link to="/form" class="nav-link" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
+                        <router-link to="/form" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
                     </li>
                     <li class="nav-item">
-                        <router-link to="/list" class="nav-link" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
+                        <router-link to="/list" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                     </li>
                 </ul>
             </div>
@@ -161,8 +164,11 @@
 
     <script type="text/x-template" id="initiative-form-template">
         <div class="card">
-            <div class="card-header">
-                {{ isEdit ? '取り組みを編集' : '新規取り組みを登録' }}
+            <div class="card-header d-flex align-items-center">
+                <router-link to="/list" class="btn btn-outline-secondary btn-sm me-2">
+                    <i class="bi bi-arrow-left"></i>
+                </router-link>
+                <span>{{ isEdit ? '取り組みを編集' : '新規取り組みを登録' }}</span>
             </div>
             <div class="card-body">
                 <form @submit.prevent="submit">
@@ -204,8 +210,11 @@
 
     <script type="text/x-template" id="initiative-list-template">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 取り組み実績一覧
+                <router-link to="/form" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>新規登録
+                </router-link>
             </div>
             <div class="card-body">
                 <!-- Filters -->
@@ -260,9 +269,6 @@
                         </tbody>
                     </table>
                 </div>
-                <router-link to="/form" class="btn btn-primary position-fixed rounded-pill" style="bottom:20px; right:20px;">
-                    <i class="bi bi-plus-lg me-1"></i>新規登録
-                </router-link>
             </div>
         </div>
     </script>
