@@ -242,9 +242,42 @@ def handle_simple_table(table_name):
         return jsonify({"id": item_id, "name": data["name"]}), 201
 
 
+def handle_simple_table_item(table_name, item_id):
+    conn = get_db_connection()
+    c = conn.cursor()
+    if request.method == "PUT":
+        data = request.json or {}
+        if "name" not in data:
+            conn.close()
+            return jsonify({"error": "Missing name"}), 400
+        c.execute(
+            f"UPDATE {table_name} SET name = ? WHERE id = ?",
+            (data["name"], item_id),
+        )
+        if c.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Not found"}), 404
+        conn.commit()
+        conn.close()
+        return jsonify({"id": item_id, "name": data["name"]})
+    else:
+        c.execute(f"DELETE FROM {table_name} WHERE id = ?", (item_id,))
+        if c.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Not found"}), 404
+        conn.commit()
+        conn.close()
+        return "", 204
+
+
 @app.route("/api/departments", methods=["GET", "POST"])
 def manage_departments():
     return handle_simple_table("departments")
+
+
+@app.route("/api/departments/<int:item_id>", methods=["PUT", "DELETE"])
+def manage_department_item(item_id):
+    return handle_simple_table_item("departments", item_id)
 
 
 @app.route("/api/names", methods=["GET", "POST"])
@@ -252,9 +285,19 @@ def manage_names():
     return handle_simple_table("names")
 
 
+@app.route("/api/names/<int:item_id>", methods=["PUT", "DELETE"])
+def manage_name_item(item_id):
+    return handle_simple_table_item("names", item_id)
+
+
 @app.route("/api/categories", methods=["GET", "POST"])
 def manage_categories():
     return handle_simple_table("categories")
+
+
+@app.route("/api/categories/<int:item_id>", methods=["PUT", "DELETE"])
+def manage_category_item(item_id):
+    return handle_simple_table_item("categories", item_id)
 
 
 if __name__ == "__main__":
