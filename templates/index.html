@@ -65,13 +65,13 @@
             <div class="offcanvas-body">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <router-link to="/" class="nav-link" data-bs-dismiss="offcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
+                        <router-link to="/" class="nav-link" @click="hideOffcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
                     </li>
                     <li class="nav-item">
-                        <router-link to="/form" class="nav-link" data-bs-dismiss="offcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
+                        <router-link to="/form" class="nav-link" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
                     </li>
                     <li class="nav-item">
-                        <router-link to="/list" class="nav-link" data-bs-dismiss="offcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
+                        <router-link to="/list" class="nav-link" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                     </li>
                 </ul>
             </div>
@@ -257,7 +257,7 @@
     </script>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+        const { createApp, ref, computed, onMounted, watch } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
         // --- Components ---
@@ -291,38 +291,50 @@
                 });
 
                 const renderCharts = () => {
-                    if (categoryChartInstance) categoryChartInstance.destroy();
-                    if (departmentChartInstance) departmentChartInstance.destroy();
-                    
                     if (categoryChart.value) {
-                        categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
-                            type: 'doughnut',
-                            data: {
-                                labels: Object.keys(categorySummary.value),
-                                datasets: [{ data: Object.values(categorySummary.value), backgroundColor: ['#ffc107', '#dc3545', '#28a745'] }]
-                            },
-                            options: { responsive: true, plugins: { legend: { position: 'top' } } }
-                        });
+                        if (!categoryChartInstance) {
+                            categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
+                                type: 'doughnut',
+                                data: {
+                                    labels: Object.keys(categorySummary.value),
+                                    datasets: [{
+                                        data: Object.values(categorySummary.value),
+                                        backgroundColor: ['#ffc107', '#dc3545', '#28a745']
+                                    }]
+                                },
+                                options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                            });
+                        } else {
+                            categoryChartInstance.data.labels = Object.keys(categorySummary.value);
+                            categoryChartInstance.data.datasets[0].data = Object.values(categorySummary.value);
+                            categoryChartInstance.update();
+                        }
                     }
+
                     if (departmentChart.value) {
-                        departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
-                            type: 'bar',
-                            data: {
-                                labels: Object.keys(departmentSummary.value),
-                                datasets: [{
-                                    label: '部門別貢献金額',
-                                    data: Object.values(departmentSummary.value),
-                                    backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
-                                }]
-                            },
-                            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
-                        });
+                        if (!departmentChartInstance) {
+                            departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
+                                type: 'bar',
+                                data: {
+                                    labels: Object.keys(departmentSummary.value),
+                                    datasets: [{
+                                        label: '部門別貢献金額',
+                                        data: Object.values(departmentSummary.value),
+                                        backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
+                                    }]
+                                },
+                                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+                            });
+                        } else {
+                            departmentChartInstance.data.labels = Object.keys(departmentSummary.value);
+                            departmentChartInstance.data.datasets[0].data = Object.values(departmentSummary.value);
+                            departmentChartInstance.update();
+                        }
                     }
                 };
 
-                watch(() => root.initiatives, () => {
-                    nextTick(renderCharts);
-                }, { deep: true, immediate: true });
+                onMounted(renderCharts);
+                watch(root.initiatives, renderCharts, { deep: true });
 
                 return { totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart };
             }
@@ -457,7 +469,7 @@
                 };
 
                 const formatCurrency = (value) => new Intl.NumberFormat('ja-JP').format(value);
-                
+
                 const getCategoryClass = (category) => {
                     switch (category) {
                         case '粗利率改善': return 'bg-warning text-dark';
@@ -465,6 +477,12 @@
                         case '粗利額アップ': return 'bg-success';
                         default: return 'bg-secondary';
                     }
+                };
+
+                const hideOffcanvas = () => {
+                    const el = document.getElementById('offcanvasNav');
+                    const instance = bootstrap.Offcanvas.getInstance(el);
+                    if (instance) instance.hide();
                 };
 
                 onMounted(fetchInitiatives);
@@ -478,7 +496,7 @@
                     getCategoryClass
                 });
 
-                return { initiatives };
+                return { initiatives, hideOffcanvas };
             }
         });
 
