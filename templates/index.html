@@ -298,34 +298,55 @@
     </script>
 
     <script type="text/x-template" id="settings-template">
-        <div class="card">
-            <div class="card-header">設定</div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 mb-4">
-                        <h5>部門</h5>
+        <div>
+            <h3 class="mb-3">設定</h3>
+            <div class="accordion" id="settingsAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingDepartment">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDepartment" aria-expanded="false" aria-controls="collapseDepartment">
+                        部門
+                    </button>
+                </h2>
+                <div id="collapseDepartment" class="accordion-collapse collapse" aria-labelledby="headingDepartment" data-bs-parent="#settingsAccordion">
+                    <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item" v-for="d in root.departments" :key="d.id">{{ d.name }}</li>
+                            <li class="list-group-item" v-for="d in root.departments" :key="d.id">{{ d.name || d }}</li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addDepartment">
                             <input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加...">
                             <button class="btn btn-primary">追加</button>
                         </form>
                     </div>
-                    <div class="col-md-4 mb-4">
-                        <h5>氏名</h5>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingName">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseName" aria-expanded="false" aria-controls="collapseName">
+                        氏名
+                    </button>
+                </h2>
+                <div id="collapseName" class="accordion-collapse collapse" aria-labelledby="headingName" data-bs-parent="#settingsAccordion">
+                    <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item" v-for="n in root.names" :key="n.id">{{ n.name }}</li>
+                            <li class="list-group-item" v-for="n in root.names" :key="n.id">{{ n.name || n }}</li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addName">
                             <input type="text" class="form-control me-2" v-model="newName" placeholder="追加...">
                             <button class="btn btn-primary">追加</button>
                         </form>
                     </div>
-                    <div class="col-md-4 mb-4">
-                        <h5>分類</h5>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingCategory">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCategory" aria-expanded="false" aria-controls="collapseCategory">
+                        分類
+                    </button>
+                </h2>
+                <div id="collapseCategory" class="accordion-collapse collapse" aria-labelledby="headingCategory" data-bs-parent="#settingsAccordion">
+                    <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item" v-for="c in root.categories" :key="c.id">{{ c.name }}</li>
+                            <li class="list-group-item" v-for="c in root.categories" :key="c.id">{{ c.name || c }}</li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addCategory">
                             <input type="text" class="form-control me-2" v-model="newCategory" placeholder="追加...">
@@ -333,6 +354,7 @@
                         </form>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     </script>
