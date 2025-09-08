@@ -154,7 +154,7 @@
     <script type="text/x-template" id="initiative-form-template">
         <div class="card">
             <div class="card-header">
-                新規取り組みを登録
+                {{ isEdit ? '取り組みを編集' : '新規取り組みを登録' }}
             </div>
             <div class="card-body">
                 <form @submit.prevent="submit">
@@ -188,7 +188,7 @@
                             <input type="number" class="form-control" id="amount" v-model.number="newInitiative.amount" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary mt-4">登録する</button>
+                    <button type="submit" class="btn btn-primary mt-4">{{ isEdit ? '更新する' : '登録する' }}</button>
                 </form>
             </div>
         </div>
@@ -238,7 +238,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="item in sortedInitiatives" :key="item.id">
+                            <tr v-for="item in sortedInitiatives" :key="item.id" @click="edit(item.id)" style="cursor:pointer">
                                 <td>{{ item.date }}</td>
                                 <td>{{ item.department }}</td>
                                 <td>{{ item.name }}</td>
@@ -252,12 +252,15 @@
                         </tbody>
                     </table>
                 </div>
+                <router-link to="/form" class="btn btn-primary position-fixed rounded-pill" style="bottom:20px; right:20px;">
+                    <i class="bi bi-plus-lg me-1"></i>新規登録
+                </router-link>
             </div>
         </div>
     </script>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch, provide, inject } = Vue;
+        const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
         // --- Components ---
@@ -291,60 +294,63 @@
                 });
 
                 const renderCharts = () => {
+                    if (categoryChartInstance) {
+                        categoryChartInstance.destroy();
+                        categoryChartInstance = null;
+                    }
+                    if (departmentChartInstance) {
+                        departmentChartInstance.destroy();
+                        departmentChartInstance = null;
+                    }
+
                     if (categoryChart.value) {
-                        if (!categoryChartInstance) {
-                            categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
-                                type: 'doughnut',
-                                data: {
-                                    labels: Object.keys(categorySummary.value),
-                                    datasets: [{
-                                        data: Object.values(categorySummary.value),
-                                        backgroundColor: ['#ffc107', '#dc3545', '#28a745']
-                                    }]
-                                },
-                                options: { responsive: true, plugins: { legend: { position: 'top' } } }
-                            });
-                        } else {
-                            categoryChartInstance.data.labels = Object.keys(categorySummary.value);
-                            categoryChartInstance.data.datasets[0].data = Object.values(categorySummary.value);
-                            categoryChartInstance.update();
-                        }
+                        categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
+                            type: 'doughnut',
+                            data: {
+                                labels: Object.keys(categorySummary.value),
+                                datasets: [{
+                                    data: Object.values(categorySummary.value),
+                                    backgroundColor: ['#ffc107', '#dc3545', '#28a745']
+                                }]
+                            },
+                            options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                        });
                     }
 
                     if (departmentChart.value) {
-                        if (!departmentChartInstance) {
-                            departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
-                                type: 'bar',
-                                data: {
-                                    labels: Object.keys(departmentSummary.value),
-                                    datasets: [{
-                                        label: '部門別貢献金額',
-                                        data: Object.values(departmentSummary.value),
-                                        backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
-                                    }]
-                                },
-                                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
-                            });
-                        } else {
-                            departmentChartInstance.data.labels = Object.keys(departmentSummary.value);
-                            departmentChartInstance.data.datasets[0].data = Object.values(departmentSummary.value);
-                            departmentChartInstance.update();
-                        }
+                        departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: Object.keys(departmentSummary.value),
+                                datasets: [{
+                                    label: '部門別貢献金額',
+                                    data: Object.values(departmentSummary.value),
+                                    backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
+                                }]
+                            },
+                            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+                        });
                     }
                 };
 
                 onMounted(renderCharts);
                 watch(root.initiatives, renderCharts, { deep: true });
+                onBeforeUnmount(() => {
+                    if (categoryChartInstance) categoryChartInstance.destroy();
+                    if (departmentChartInstance) departmentChartInstance.destroy();
+                });
 
                 return { totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart };
             }
         };
 
-        const InitiativeForm = {
+const InitiativeForm = {
             template: '#initiative-form-template',
             setup() {
                 const root = inject('root');
                 const router = VueRouter.useRouter();
+                const route = VueRouter.useRoute();
+
                 const newInitiative = ref({
                     department: '',
                     name: '',
@@ -354,19 +360,35 @@
                     amount: null,
                 });
 
+                const isEdit = computed(() => !!route.params.id);
+
+                onMounted(() => {
+                    if (isEdit.value) {
+                        const existing = root.initiatives.value.find(i => i.id === parseInt(route.params.id));
+                        if (existing) {
+                            newInitiative.value = { ...existing };
+                        }
+                    }
+                });
+
                 const submit = async () => {
-                    await root.submitInitiative(newInitiative.value);
+                    if (isEdit.value) {
+                        await root.updateInitiative(parseInt(route.params.id), newInitiative.value);
+                    } else {
+                        await root.submitInitiative(newInitiative.value);
+                    }
                     router.push('/list');
                 };
 
-                return { newInitiative, submit };
+                return { newInitiative, submit, isEdit };
             }
         };
 
-        const InitiativeList = {
+const InitiativeList = {
             template: '#initiative-list-template',
             setup() {
                 const root = inject('root');
+                const router = VueRouter.useRouter();
                 const filters = ref({ name: '', department: '', category: '' });
                 const sortByColumn = ref('date');
                 const sortDirection = ref('desc');
@@ -415,14 +437,19 @@
                     filters.value = { name: '', department: '', category: '' };
                 };
 
-                return { 
-                    filters, 
-                    sortBy, 
-                    sortIcon, 
-                    sortedInitiatives, 
+                const edit = (id) => {
+                    router.push(`/form/${id}`);
+                };
+
+                return {
+                    filters,
+                    sortBy,
+                    sortIcon,
+                    sortedInitiatives,
                     resetFilters,
-                    getCategoryClass: root.getCategoryClass, 
-                    formatCurrency: root.formatCurrency 
+                    edit,
+                    getCategoryClass: root.getCategoryClass,
+                    formatCurrency: root.formatCurrency
                 };
             }
         };
@@ -430,7 +457,7 @@
         // --- Router ---
         const routes = [
             { path: '/', component: Dashboard },
-            { path: '/form', component: InitiativeForm },
+            { path: '/form/:id?', component: InitiativeForm },
             { path: '/list', component: InitiativeList },
         ];
         const router = createRouter({
@@ -468,6 +495,21 @@
                     }
                 };
 
+                const updateInitiative = async (id, updated) => {
+                    try {
+                        const response = await fetch(`/api/initiatives/${id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updated),
+                        });
+                        if (response.ok) {
+                            await fetchInitiatives();
+                        }
+                    } catch (error) {
+                        console.error('Error updating initiative:', error);
+                    }
+                };
+
                 const formatCurrency = (value) => new Intl.NumberFormat('ja-JP').format(value);
 
                 const getCategoryClass = (category) => {
@@ -492,6 +534,7 @@
                     initiatives,
                     fetchInitiatives,
                     submitInitiative,
+                    updateInitiative,
                     formatCurrency,
                     getCategoryClass
                 });

@@ -79,5 +79,23 @@ def add_initiative():
     next_id += 1
     return jsonify(initiative), 201
 
+
+# API: 既存の取り組み実績を更新
+@app.route('/api/initiatives/<int:item_id>', methods=['PUT'])
+def update_initiative(item_id):
+    data = request.json
+    for initiative in initiatives:
+        if initiative["id"] == item_id:
+            # 各フィールドを更新（指定が無ければ既存値を維持）
+            initiative["department"] = data.get("department", initiative["department"])
+            initiative["name"] = data.get("name", initiative["name"])
+            initiative["date"] = data.get("date", initiative["date"])
+            initiative["category"] = data.get("category", initiative["category"])
+            initiative["content"] = data.get("content", initiative["content"])
+            if "amount" in data:
+                initiative["amount"] = int(data["amount"])
+            return jsonify(initiative)
+    return jsonify({"error": "Not found"}), 404
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
