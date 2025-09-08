@@ -270,11 +270,11 @@
                 let categoryChartInstance = null;
                 let departmentChartInstance = null;
 
-                const totalAmount = computed(() => root.initiatives.reduce((sum, item) => sum + item.amount, 0));
+                const totalAmount = computed(() => root.initiatives.value.reduce((sum, item) => sum + item.amount, 0));
 
                 const categorySummary = computed(() => {
                     const summary = {};
-                    root.initiatives.forEach(item => {
+                    root.initiatives.value.forEach(item => {
                         if (!summary[item.category]) summary[item.category] = 0;
                         summary[item.category] += item.amount;
                     });
@@ -283,7 +283,7 @@
 
                 const departmentSummary = computed(() => {
                     const summary = {};
-                    root.initiatives.forEach(item => {
+                    root.initiatives.value.forEach(item => {
                         if (!summary[item.department]) summary[item.department] = 0;
                         summary[item.department] += item.amount;
                     });
@@ -372,7 +372,7 @@
                 const sortDirection = ref('desc');
 
                 const filteredInitiatives = computed(() => {
-                    return root.initiatives.filter(item => {
+                    return root.initiatives.value.filter(item => {
                         const nameMatch = item.name.toLowerCase().includes(filters.value.name.toLowerCase());
                         const depMatch = item.department.toLowerCase().includes(filters.value.department.toLowerCase());
                         const catMatch = filters.value.category ? item.category === filters.value.category : true;
