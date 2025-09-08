@@ -227,8 +227,8 @@
                             <input type="number" class="form-control" id="amount" v-model.number="newInitiative.amount" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary mt-4" :disabled="root.isLoading">{{ isEdit ? '更新する' : '登録する' }}</button>
-                    <button type="button" class="btn btn-danger mt-4 ms-2" v-if="isEdit" @click="remove" :disabled="root.isLoading">削除</button>
+                    <button type="submit" class="btn btn-primary mt-4" :disabled="root.isLoading.value">{{ isEdit ? '更新する' : '登録する' }}</button>
+                    <button type="button" class="btn btn-danger mt-4 ms-2" v-if="isEdit" @click="remove" :disabled="root.isLoading.value">削除</button>
                 </form>
             </div>
         </div>
@@ -315,19 +315,19 @@
                             <li class="list-group-item d-flex align-items-center" v-for="d in root.departments.value" :key="d.id">
                                 <template v-if="editingDeptId === d.id">
                                     <input type="text" class="form-control me-2" v-model="editingDeptName">
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveDepartment(d.id)" :disabled="root.isLoading">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelDepartmentEdit" :disabled="root.isLoading">キャンセル</button>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveDepartment(d.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelDepartmentEdit" :disabled="root.isLoading.value">キャンセル</button>
                                 </template>
                                 <template v-else>
                                     <span class="me-auto">{{ d.name || d }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startDepartmentEdit(d)" :disabled="root.isLoading">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeDepartment(d.id)" :disabled="root.isLoading">削除</button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startDepartmentEdit(d)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeDepartment(d.id)" :disabled="root.isLoading.value">削除</button>
                                 </template>
                             </li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addDepartment">
                             <input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加...">
-                            <button class="btn btn-primary" :disabled="root.isLoading">追加</button>
+                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
                         </form>
                     </div>
                 </div>
@@ -344,19 +344,19 @@
                             <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
                                 <template v-if="editingNameId === n.id">
                                     <input type="text" class="form-control me-2" v-model="editingNameName">
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading">キャンセル</button>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading.value">キャンセル</button>
                                 </template>
                                 <template v-else>
                                     <span class="me-auto">{{ n.name || n }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading">削除</button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
                                 </template>
                             </li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addName">
                             <input type="text" class="form-control me-2" v-model="newName" placeholder="追加...">
-                            <button class="btn btn-primary" :disabled="root.isLoading">追加</button>
+                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
                         </form>
                     </div>
                 </div>
@@ -373,19 +373,19 @@
                             <li class="list-group-item d-flex align-items-center" v-for="c in root.categories.value" :key="c.id">
                                 <template v-if="editingCategoryId === c.id">
                                     <input type="text" class="form-control me-2" v-model="editingCategoryName">
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveCategory(c.id)" :disabled="root.isLoading">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelCategoryEdit" :disabled="root.isLoading">キャンセル</button>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveCategory(c.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelCategoryEdit" :disabled="root.isLoading.value">キャンセル</button>
                                 </template>
                                 <template v-else>
                                     <span class="me-auto">{{ c.name || c }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startCategoryEdit(c)" :disabled="root.isLoading">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeCategory(c.id)" :disabled="root.isLoading">削除</button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startCategoryEdit(c)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeCategory(c.id)" :disabled="root.isLoading.value">削除</button>
                                 </template>
                             </li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addCategory">
                             <input type="text" class="form-control me-2" v-model="newCategory" placeholder="追加...">
-                            <button class="btn btn-primary" :disabled="root.isLoading">追加</button>
+                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
                         </form>
                     </div>
                 </div>
