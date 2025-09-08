@@ -7,3 +7,15 @@ Dockerコンテナを実行ビルドが完了したら、以下のコマンド�
 ├── requirements.txt    # Pythonの依存ライブラリ
 └── templates/
     └── index.html      # フロントエンドのHTML/Vue.jsファイル
+
+🖥️ Windowsでの実行
+1. 仮想環境を作成して依存パッケージをインストールします。
+   ```
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+2. アプリケーションを起動するには以下を実行します。
+   ```
+   start_windows.bat
+   ```
