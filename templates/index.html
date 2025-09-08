@@ -334,7 +334,7 @@
                 };
 
                 onMounted(renderCharts);
-                watch(root.initiatives, renderCharts, { deep: true });
+                watch(root.initiatives, renderCharts);
                 onBeforeUnmount(() => {
                     if (categoryChartInstance) categoryChartInstance.destroy();
                     if (departmentChartInstance) departmentChartInstance.destroy();
