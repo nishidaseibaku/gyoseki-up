@@ -6,6 +6,8 @@
     <title>業績アップ取り組みダッシュボード</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,26 +16,19 @@
     <style>
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            background-color: #f8f9fa;
-        }
-        .navbar-brand {
-            font-weight: 700;
+            background-color: #f0f2f5;
         }
         .card {
             border: none;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-5px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
         .card-header {
-            background-color: #0d6efd;
-            color: white;
+            background-color: #fff;
+            border-bottom: 1px solid #dee2e6;
             font-weight: 500;
         }
         .kpi-card .card-body {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 700;
         }
         .btn-primary {
@@ -43,309 +38,451 @@
         .table-hover tbody tr:hover {
             background-color: #e9ecef;
         }
-        #app {
-            animation: fadeIn 0.5s ease-in-out;
+        .th-sortable {
+            cursor: pointer;
+            user-select: none;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .th-sortable:hover {
+            background-color: #f8f9fa;
+        }
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
         }
     </style>
 </head>
 <body>
-    <div id="app" class="container-fluid p-4">
-        
-        <nav class="navbar navbar-dark bg-primary rounded mb-4">
+    <div id="app">
+        <!-- Offcanvas Navigation -->
+        <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNav" aria-labelledby="offcanvasNavLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasNavLabel">メニュー</h5>
+                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <router-link to="/" class="nav-link" data-bs-dismiss="offcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="/form" class="nav-link" data-bs-dismiss="offcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="/list" class="nav-link" data-bs-dismiss="offcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <nav class="navbar navbar-light bg-white shadow-sm sticky-top">
             <div class="container-fluid">
-                <a class="navbar-brand" href="#">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="d-inline-block align-text-top me-2"><path d="M12 20V10M18 20V4M6 20V16"></path></svg>
+                <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav" aria-controls="offcanvasNav">
+                    <i class="bi bi-list"></i>
+                </button>
+                <a class="navbar-brand mx-auto" href="#">
                     業績アップ取り組みダッシュボード
                 </a>
+                <div style="width: 40px;"></div> <!-- Spacer -->
             </div>
         </nav>
 
         <!-- Main Content -->
-        <div class="row">
-            <!-- Left Panel: Form & List -->
-            <div class="col-lg-7">
-                <!-- Submission Form Card -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        新規取り組みを登録
-                    </div>
-                    <div class="card-body">
-                        <form @submit.prevent="submitInitiative">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="department" class="form-label">部門・チーム</label>
-                                    <input type="text" class="form-control" id="department" v-model="newInitiative.department" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="name" class="form-label">氏名</label>
-                                    <input type="text" class="form-control" id="name" v-model="newInitiative.name" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="date" class="form-label">実施日</label>
-                                    <input type="date" class="form-control" id="date" v-model="newInitiative.date" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="category" class="form-label">分類</label>
-                                    <select class="form-select" id="category" v-model="newInitiative.category" required>
-                                        <option>粗利率改善</option>
-                                        <option>固定費コントロール</option>
-                                        <option>粗利額アップ</option>
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label for="content" class="form-label">具体的な内容</label>
-                                    <textarea class="form-control" id="content" rows="2" v-model="newInitiative.content" required></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="amount" class="form-label">金額 (円)</label>
-                                    <input type="number" class="form-control" id="amount" v-model.number="newInitiative.amount" required>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary mt-3">登録</button>
-                        </form>
+        <main class="container-fluid p-4">
+            <router-view v-slot="{ Component }">
+                <transition name="fade" mode="out-in">
+                    <component :is="Component" />
+                </transition>
+            </router-view>
+        </main>
+    </div>
+
+    <!-- Vue.js, Vue Router, Chart.js, Bootstrap JS from CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Component Templates -->
+    <script type="text/x-template" id="dashboard-template">
+        <div>
+            <!-- KPI Cards -->
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card text-center">
+                        <div class="card-header bg-success text-white">合計貢献金額</div>
+                        <div class="card-body kpi-card">
+                            ¥{{ formatCurrency(totalAmount) }}
+                        </div>
                     </div>
                 </div>
-
-                <!-- Initiatives List Card -->
-                <div class="card">
-                    <div class="card-header">
-                        取り組み実績一覧
-                    </div>
-                    <div class="card-body">
-                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>実施日</th>
-                                        <th>部門</th>
-                                        <th>氏名</th>
-                                        <th>分類</th>
-                                        <th>内容</th>
-                                        <th class="text-end">金額(円)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="item in initiatives" :key="item.id">
-                                        <td>{{ item.date }}</td>
-                                        <td>{{ item.department }}</td>
-                                        <td>{{ item.name }}</td>
-                                        <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
-                                        <td>{{ item.content }}</td>
-                                        <td class="text-end">{{ formatCurrency(item.amount) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                <div class="col-md-6 mb-4">
+                    <div class="card text-center">
+                        <div class="card-header bg-info text-white">総件数</div>
+                        <div class="card-body kpi-card">
+                            {{ $root.initiatives.length }} 件
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Right Panel: Dashboard -->
-            <div class="col-lg-5">
-                <!-- KPI Cards -->
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="card text-center kpi-card">
-                            <div class="card-header bg-success">
-                                合計貢献金額
-                            </div>
-                            <div class="card-body">
-                                ¥{{ formatCurrency(totalAmount) }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-4">
-                        <div class="card text-center kpi-card">
-                            <div class="card-header bg-info">
-                                総件数
-                            </div>
-                            <div class="card-body">
-                                {{ initiatives.length }} 件
-                            </div>
+            
+            <!-- Charts -->
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">分類別 金額</div>
+                        <div class="card-body">
+                            <canvas ref="categoryChart"></canvas>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Charts -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        分類別 金額 breakdown
-                    </div>
-                    <div class="card-body">
-                        <canvas id="categoryChart"></canvas>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        部門別 金額 breakdown
-                    </div>
-                    <div class="card-body">
-                        <canvas id="departmentChart"></canvas>
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">部門別 金額</div>
+                        <div class="card-body">
+                            <canvas ref="departmentChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </script>
 
-    <!-- Vue.js and Chart.js from CDN -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/x-template" id="initiative-form-template">
+        <div class="card">
+            <div class="card-header">
+                新規取り組みを登録
+            </div>
+            <div class="card-body">
+                <form @submit.prevent="submit">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="department" class="form-label">部門・チーム</label>
+                            <input type="text" class="form-control" id="department" v-model="newInitiative.department" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">氏名</label>
+                            <input type="text" class="form-control" id="name" v-model="newInitiative.name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="date" class="form-label">実施日</label>
+                            <input type="date" class="form-control" id="date" v-model="newInitiative.date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="category" class="form-label">分類</label>
+                            <select class="form-select" id="category" v-model="newInitiative.category" required>
+                                <option>粗利率改善</option>
+                                <option>固定費コントロール</option>
+                                <option>粗利額アップ</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="content" class="form-label">具体的な内容</label>
+                            <textarea class="form-control" id="content" rows="3" v-model="newInitiative.content" required></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="amount" class="form-label">金額 (円)</label>
+                            <input type="number" class="form-control" id="amount" v-model.number="newInitiative.amount" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-4">登録する</button>
+                </form>
+            </div>
+        </div>
+    </script>
+
+    <script type="text/x-template" id="initiative-list-template">
+        <div class="card">
+            <div class="card-header">
+                取り組み実績一覧
+            </div>
+            <div class="card-body">
+                <!-- Filters -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label for="filterName" class="form-label">氏名</label>
+                        <input type="text" id="filterName" class="form-control" v-model="filters.name" placeholder="氏名で検索...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterDepartment" class="form-label">部門</label>
+                        <input type="text" id="filterDepartment" class="form-control" v-model="filters.department" placeholder="部門で検索...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterCategory" class="form-label">分類</label>
+                        <select id="filterCategory" class="form-select" v-model="filters.category">
+                            <option value="">すべて</option>
+                            <option>粗利率改善</option>
+                            <option>固定費コントロール</option>
+                            <option>粗利額アップ</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-secondary" @click="resetFilters">リセット</button>
+                    </div>
+                </div>
+
+                <!-- Initiatives List -->
+                 <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th @click="sortBy('date')" class="th-sortable">実施日 <i :class="sortIcon('date')"></i></th>
+                                <th @click="sortBy('department')" class="th-sortable">部門 <i :class="sortIcon('department')"></i></th>
+                                <th @click="sortBy('name')" class="th-sortable">氏名 <i :class="sortIcon('name')"></i></th>
+                                <th @click="sortBy('category')" class="th-sortable">分類 <i :class="sortIcon('category')"></i></th>
+                                <th>内容</th>
+                                <th @click="sortBy('amount')" class="th-sortable text-end">金額(円) <i :class="sortIcon('amount')"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in sortedInitiatives" :key="item.id">
+                                <td>{{ item.date }}</td>
+                                <td>{{ item.department }}</td>
+                                <td>{{ item.name }}</td>
+                                <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
+                                <td>{{ item.content }}</td>
+                                <td class="text-end">{{ formatCurrency(item.amount) }}</td>
+                            </tr>
+                            <tr v-if="sortedInitiatives.length === 0">
+                                <td colspan="6" class="text-center">該当するデータがありません。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </script>
 
     <script>
-        const { createApp } = Vue;
+        const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+        const { createRouter, createWebHashHistory } = VueRouter;
 
-        createApp({
-            data() {
-                return {
-                    initiatives: [],
-                    newInitiative: {
-                        department: '',
-                        name: '',
-                        date: new Date().toISOString().slice(0, 10),
-                        category: '粗利額アップ',
-                        content: '',
-                        amount: null,
-                    },
-                    categoryChart: null,
-                    departmentChart: null,
-                }
-            },
-            computed: {
-                totalAmount() {
-                    return this.initiatives.reduce((sum, item) => sum + item.amount, 0);
-                },
-                categorySummary() {
+        // --- Components ---
+        const Dashboard = {
+            template: '#dashboard-template',
+            setup() {
+                const root = Vue.inject('root');
+                const categoryChart = ref(null);
+                const departmentChart = ref(null);
+                let categoryChartInstance = null;
+                let departmentChartInstance = null;
+
+                const totalAmount = computed(() => root.initiatives.reduce((sum, item) => sum + item.amount, 0));
+
+                const categorySummary = computed(() => {
                     const summary = {};
-                    this.initiatives.forEach(item => {
-                        if (!summary[item.category]) {
-                            summary[item.category] = 0;
-                        }
+                    root.initiatives.forEach(item => {
+                        if (!summary[item.category]) summary[item.category] = 0;
                         summary[item.category] += item.amount;
                     });
                     return summary;
-                },
-                departmentSummary() {
+                });
+
+                const departmentSummary = computed(() => {
                     const summary = {};
-                    this.initiatives.forEach(item => {
-                        if (!summary[item.department]) {
-                            summary[item.department] = 0;
-                        }
+                    root.initiatives.forEach(item => {
+                        if (!summary[item.department]) summary[item.department] = 0;
                         summary[item.department] += item.amount;
                     });
                     return summary;
-                }
-            },
-            methods: {
-                async fetchInitiatives() {
+                });
+
+                const renderCharts = () => {
+                    if (categoryChartInstance) categoryChartInstance.destroy();
+                    if (departmentChartInstance) departmentChartInstance.destroy();
+                    
+                    if (categoryChart.value) {
+                        categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
+                            type: 'doughnut',
+                            data: {
+                                labels: Object.keys(categorySummary.value),
+                                datasets: [{ data: Object.values(categorySummary.value), backgroundColor: ['#ffc107', '#dc3545', '#28a745'] }]
+                            },
+                            options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                        });
+                    }
+                    if (departmentChart.value) {
+                        departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
+                            type: 'bar',
+                            data: {
+                                labels: Object.keys(departmentSummary.value),
+                                datasets: [{
+                                    label: '部門別貢献金額',
+                                    data: Object.values(departmentSummary.value),
+                                    backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
+                                }]
+                            },
+                            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+                        });
+                    }
+                };
+
+                watch(() => root.initiatives, () => {
+                    nextTick(renderCharts);
+                }, { deep: true, immediate: true });
+
+                return { totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart };
+            }
+        };
+
+        const InitiativeForm = {
+            template: '#initiative-form-template',
+            setup() {
+                const root = Vue.inject('root');
+                const router = VueRouter.useRouter();
+                const newInitiative = ref({
+                    department: '',
+                    name: '',
+                    date: new Date().toISOString().slice(0, 10),
+                    category: '粗利額アップ',
+                    content: '',
+                    amount: null,
+                });
+
+                const submit = async () => {
+                    await root.submitInitiative(newInitiative.value);
+                    router.push('/list');
+                };
+
+                return { newInitiative, submit };
+            }
+        };
+
+        const InitiativeList = {
+            template: '#initiative-list-template',
+            setup() {
+                const root = Vue.inject('root');
+                const filters = ref({ name: '', department: '', category: '' });
+                const sortByColumn = ref('date');
+                const sortDirection = ref('desc');
+
+                const filteredInitiatives = computed(() => {
+                    return root.initiatives.filter(item => {
+                        const nameMatch = item.name.toLowerCase().includes(filters.value.name.toLowerCase());
+                        const depMatch = item.department.toLowerCase().includes(filters.value.department.toLowerCase());
+                        const catMatch = filters.value.category ? item.category === filters.value.category : true;
+                        return nameMatch && depMatch && catMatch;
+                    });
+                });
+
+                const sortedInitiatives = computed(() => {
+                    return [...filteredInitiatives.value].sort((a, b) => {
+                        let aVal = a[sortByColumn.value];
+                        let bVal = b[sortByColumn.value];
+
+                        if (sortByColumn.value === 'date') {
+                            return sortDirection.value === 'asc' ? new Date(aVal) - new Date(bVal) : new Date(bVal) - new Date(aVal);
+                        }
+                        
+                        if (typeof aVal === 'string') {
+                            return sortDirection.value === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                        }
+                        
+                        return sortDirection.value === 'asc' ? aVal - bVal : bVal - aVal;
+                    });
+                });
+
+                const sortBy = (column) => {
+                    if (sortByColumn.value === column) {
+                        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortByColumn.value = column;
+                        sortDirection.value = 'desc';
+                    }
+                };
+
+                const sortIcon = (column) => {
+                    if (sortByColumn.value !== column) return 'bi bi-arrow-down-up';
+                    return sortDirection.value === 'asc' ? 'bi bi-sort-up' : 'bi bi-sort-down';
+                };
+                
+                const resetFilters = () => {
+                    filters.value = { name: '', department: '', category: '' };
+                };
+
+                return { 
+                    filters, 
+                    sortBy, 
+                    sortIcon, 
+                    sortedInitiatives, 
+                    resetFilters,
+                    getCategoryClass: root.getCategoryClass, 
+                    formatCurrency: root.formatCurrency 
+                };
+            }
+        };
+
+        // --- Router ---
+        const routes = [
+            { path: '/', component: Dashboard },
+            { path: '/form', component: InitiativeForm },
+            { path: '/list', component: InitiativeList },
+        ];
+        const router = createRouter({
+            history: createWebHashHistory(),
+            routes,
+            linkActiveClass: 'active'
+        });
+
+        // --- Main App ---
+        const app = createApp({
+            setup() {
+                const initiatives = ref([]);
+
+                const fetchInitiatives = async () => {
                     try {
                         const response = await fetch('/api/initiatives');
-                        this.initiatives = await response.json();
-                        this.initiatives.sort((a, b) => new Date(b.date) - new Date(a.date));
-                        this.renderCharts();
+                        initiatives.value = await response.json();
                     } catch (error) {
                         console.error('Error fetching initiatives:', error);
                     }
-                },
-                async submitInitiative() {
+                };
+
+                const submitInitiative = async (newInitiative) => {
                     try {
                         const response = await fetch('/api/initiatives', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(this.newInitiative),
+                            body: JSON.stringify(newInitiative),
                         });
                         if (response.ok) {
-                            this.resetForm();
-                            this.fetchInitiatives();
+                            await fetchInitiatives(); // Refresh data
                         }
                     } catch (error) {
                         console.error('Error submitting initiative:', error);
                     }
-                },
-                resetForm() {
-                    this.newInitiative = {
-                        department: '',
-                        name: '',
-                        date: new Date().toISOString().slice(0, 10),
-                        category: '粗利額アップ',
-                        content: '',
-                        amount: null,
-                    };
-                },
-                formatCurrency(value) {
-                    return new Intl.NumberFormat('ja-JP').format(value);
-                },
-                getCategoryClass(category) {
+                };
+
+                const formatCurrency = (value) => new Intl.NumberFormat('ja-JP').format(value);
+                
+                const getCategoryClass = (category) => {
                     switch (category) {
                         case '粗利率改善': return 'bg-warning text-dark';
                         case '固定費コントロール': return 'bg-danger';
                         case '粗利額アップ': return 'bg-success';
                         default: return 'bg-secondary';
                     }
-                },
-                renderCharts() {
-                    this.$nextTick(() => {
-                        this.renderCategoryChart();
-                        this.renderDepartmentChart();
-                    });
-                },
-                renderCategoryChart() {
-                    const ctx = document.getElementById('categoryChart').getContext('2d');
-                    if (this.categoryChart) {
-                        this.categoryChart.destroy();
-                    }
-                    this.categoryChart = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: Object.keys(this.categorySummary),
-                            datasets: [{
-                                data: Object.values(this.categorySummary),
-                                backgroundColor: ['#28a745', '#dc3545', '#ffc107'],
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { position: 'top' },
-                            }
-                        }
-                    });
-                },
-                renderDepartmentChart() {
-                    const ctx = document.getElementById('departmentChart').getContext('2d');
-                    const backgroundColors = ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
-                    const departmentData = this.departmentSummary;
+                };
 
-                    if (this.departmentChart) {
-                        this.departmentChart.destroy();
-                    }
-                    this.departmentChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: Object.keys(departmentData),
-                            datasets: [{
-                                label: '部門別貢献金額',
-                                data: Object.values(departmentData),
-                                backgroundColor: backgroundColors,
-                            }]
-                        },
-                        options: {
-                            indexAxis: 'y',
-                            responsive: true,
-                            plugins: {
-                                legend: { display: false },
-                            }
-                        }
-                    });
-                }
-            },
-            mounted() {
-                this.fetchInitiatives();
+                onMounted(fetchInitiatives);
+
+                // Provide shared state and methods to all components
+                Vue.provide('root', {
+                    initiatives,
+                    fetchInitiatives,
+                    submitInitiative,
+                    formatCurrency,
+                    getCategoryClass
+                });
+
+                return { initiatives };
             }
-        }).mount('#app');
+        });
+
+        app.use(router);
+        app.mount('#app');
     </script>
 </body>
 </html>
