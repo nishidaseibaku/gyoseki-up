@@ -294,42 +294,49 @@
                 });
 
                 const renderCharts = () => {
-                    if (categoryChartInstance) {
-                        categoryChartInstance.destroy();
-                        categoryChartInstance = null;
-                    }
-                    if (departmentChartInstance) {
-                        departmentChartInstance.destroy();
-                        departmentChartInstance = null;
-                    }
-
                     if (categoryChart.value) {
-                        categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
-                            type: 'doughnut',
-                            data: {
-                                labels: Object.keys(categorySummary.value),
-                                datasets: [{
-                                    data: Object.values(categorySummary.value),
-                                    backgroundColor: ['#ffc107', '#dc3545', '#28a745']
-                                }]
-                            },
-                            options: { responsive: true, plugins: { legend: { position: 'top' } } }
-                        });
+                        const labels = Object.keys(categorySummary.value);
+                        const data = Object.values(categorySummary.value);
+                        if (!categoryChartInstance) {
+                            categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
+                                type: 'doughnut',
+                                data: {
+                                    labels,
+                                    datasets: [{
+                                        data,
+                                        backgroundColor: ['#ffc107', '#dc3545', '#28a745']
+                                    }]
+                                },
+                                options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                            });
+                        } else {
+                            categoryChartInstance.data.labels = labels;
+                            categoryChartInstance.data.datasets[0].data = data;
+                            categoryChartInstance.update();
+                        }
                     }
 
                     if (departmentChart.value) {
-                        departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
-                            type: 'bar',
-                            data: {
-                                labels: Object.keys(departmentSummary.value),
-                                datasets: [{
-                                    label: '部門別貢献金額',
-                                    data: Object.values(departmentSummary.value),
-                                    backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
-                                }]
-                            },
-                            options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
-                        });
+                        const labels = Object.keys(departmentSummary.value);
+                        const data = Object.values(departmentSummary.value);
+                        if (!departmentChartInstance) {
+                            departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
+                                type: 'bar',
+                                data: {
+                                    labels,
+                                    datasets: [{
+                                        label: '部門別貢献金額',
+                                        data,
+                                        backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
+                                    }]
+                                },
+                                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+                            });
+                        } else {
+                            departmentChartInstance.data.labels = labels;
+                            departmentChartInstance.data.datasets[0].data = data;
+                            departmentChartInstance.update();
+                        }
                     }
                 };
 
