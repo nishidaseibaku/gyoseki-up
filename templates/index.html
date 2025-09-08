@@ -191,13 +191,13 @@
                         <div class="col-md-6">
                             <label for="department" class="form-label">部門・チーム</label>
                             <select class="form-select" id="department" v-model="newInitiative.department" required>
-                                <option v-for="d in root.departments" :key="d.id" :value="d.name">{{ d.name }}</option>
+                                <option v-for="d in root.departments.value" :key="d.id" :value="d.name">{{ d.name }}</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label for="name" class="form-label">氏名</label>
                             <select class="form-select" id="name" v-model="newInitiative.name" required>
-                                <option v-for="n in root.names" :key="n.id" :value="n.name">{{ n.name }}</option>
+                                <option v-for="n in root.names.value" :key="n.id" :value="n.name">{{ n.name }}</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -207,7 +207,7 @@
                         <div class="col-md-6">
                             <label for="category" class="form-label">分類</label>
                             <select class="form-select" id="category" v-model="newInitiative.category" required>
-                                <option v-for="c in root.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
+                                <option v-for="c in root.categories.value" :key="c.id" :value="c.name">{{ c.name }}</option>
                             </select>
                         </div>
                         <div class="col-12">
@@ -310,7 +310,7 @@
                 <div id="collapseDepartment" class="accordion-collapse collapse" aria-labelledby="headingDepartment" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item" v-for="d in root.departments" :key="d.id">{{ d.name || d }}</li>
+                            <li class="list-group-item" v-for="d in root.departments.value" :key="d.id">{{ d.name || d }}</li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addDepartment">
                             <input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加...">
@@ -328,7 +328,7 @@
                 <div id="collapseName" class="accordion-collapse collapse" aria-labelledby="headingName" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item" v-for="n in root.names" :key="n.id">{{ n.name || n }}</li>
+                            <li class="list-group-item" v-for="n in root.names.value" :key="n.id">{{ n.name || n }}</li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addName">
                             <input type="text" class="form-control me-2" v-model="newName" placeholder="追加...">
@@ -346,7 +346,7 @@
                 <div id="collapseCategory" class="accordion-collapse collapse" aria-labelledby="headingCategory" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item" v-for="c in root.categories" :key="c.id">{{ c.name || c }}</li>
+                            <li class="list-group-item" v-for="c in root.categories.value" :key="c.id">{{ c.name || c }}</li>
                         </ul>
                         <form class="d-flex" @submit.prevent="addCategory">
                             <input type="text" class="form-control me-2" v-model="newCategory" placeholder="追加...">
