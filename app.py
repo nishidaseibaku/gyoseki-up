@@ -27,7 +27,52 @@ def init_db():
         )
         """
     )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS departments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+        """
+    )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+        """
+    )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+        """
+    )
     conn.commit()
+
+    c.execute("SELECT COUNT(*) FROM categories")
+    if c.fetchone()[0] == 0:
+        c.executemany(
+            "INSERT INTO categories (name) VALUES (?)",
+            [("粗利率改善",), ("固定費コントロール",), ("粗利額アップ",)],
+        )
+
+    c.execute("SELECT COUNT(*) FROM departments")
+    if c.fetchone()[0] == 0:
+        c.executemany(
+            "INSERT INTO departments (name) VALUES (?)",
+            [("営業1課",), ("開発部",), ("営業2課",)],
+        )
+
+    c.execute("SELECT COUNT(*) FROM names")
+    if c.fetchone()[0] == 0:
+        c.executemany(
+            "INSERT INTO names (name) VALUES (?)",
+            [("山田 太郎",), ("鈴木 一郎",), ("佐藤 花子",), ("高橋 健太",)],
+        )
 
     c.execute("SELECT COUNT(*) FROM initiatives")
     if c.fetchone()[0] == 0:
@@ -161,6 +206,55 @@ def update_initiative(item_id):
     conn.close()
 
     return jsonify({"id": item_id, **updated})
+
+
+# API: 取り組みを削除
+@app.route("/api/initiatives/<int:item_id>", methods=["DELETE"])
+def delete_initiative(item_id):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM initiatives WHERE id = ?", (item_id,))
+    if c.rowcount == 0:
+        conn.close()
+        return jsonify({"error": "Not found"}), 404
+    conn.commit()
+    conn.close()
+    return "", 204
+
+
+# 共通関数: シンプルな設定マスタのCRUD(追加と一覧)
+def handle_simple_table(table_name):
+    conn = get_db_connection()
+    c = conn.cursor()
+    if request.method == "GET":
+        rows = [dict(row) for row in c.execute(f"SELECT * FROM {table_name} ORDER BY name")]
+        conn.close()
+        return jsonify(rows)
+    else:
+        data = request.json or {}
+        if "name" not in data:
+            conn.close()
+            return jsonify({"error": "Missing name"}), 400
+        c.execute(f"INSERT INTO {table_name} (name) VALUES (?)", (data["name"],))
+        conn.commit()
+        item_id = c.lastrowid
+        conn.close()
+        return jsonify({"id": item_id, "name": data["name"]}), 201
+
+
+@app.route("/api/departments", methods=["GET", "POST"])
+def manage_departments():
+    return handle_simple_table("departments")
+
+
+@app.route("/api/names", methods=["GET", "POST"])
+def manage_names():
+    return handle_simple_table("names")
+
+
+@app.route("/api/categories", methods=["GET", "POST"])
+def manage_categories():
+    return handle_simple_table("categories")
 
 
 if __name__ == "__main__":
