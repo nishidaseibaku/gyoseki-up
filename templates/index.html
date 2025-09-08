@@ -257,14 +257,14 @@
     </script>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue;
+        const { createApp, ref, computed, onMounted, watch, provide, inject } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
         // --- Components ---
         const Dashboard = {
             template: '#dashboard-template',
             setup() {
-                const root = Vue.inject('root');
+                const root = inject('root');
                 const categoryChart = ref(null);
                 const departmentChart = ref(null);
                 let categoryChartInstance = null;
@@ -343,7 +343,7 @@
         const InitiativeForm = {
             template: '#initiative-form-template',
             setup() {
-                const root = Vue.inject('root');
+                const root = inject('root');
                 const router = VueRouter.useRouter();
                 const newInitiative = ref({
                     department: '',
@@ -366,7 +366,7 @@
         const InitiativeList = {
             template: '#initiative-list-template',
             setup() {
-                const root = Vue.inject('root');
+                const root = inject('root');
                 const filters = ref({ name: '', department: '', category: '' });
                 const sortByColumn = ref('date');
                 const sortDirection = ref('desc');
@@ -488,7 +488,7 @@
                 onMounted(fetchInitiatives);
 
                 // Provide shared state and methods to all components
-                Vue.provide('root', {
+                provide('root', {
                     initiatives,
                     fetchInitiatives,
                     submitInitiative,
