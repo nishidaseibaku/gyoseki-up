@@ -92,6 +92,9 @@
                     <li class="nav-item">
                         <router-link to="/list" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                     </li>
+                    <li class="nav-item">
+                        <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -187,11 +190,15 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="department" class="form-label">部門・チーム</label>
-                            <input type="text" class="form-control" id="department" v-model="newInitiative.department" required>
+                            <select class="form-select" id="department" v-model="newInitiative.department" required>
+                                <option v-for="d in root.departments" :key="d.id" :value="d.name">{{ d.name }}</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label for="name" class="form-label">氏名</label>
-                            <input type="text" class="form-control" id="name" v-model="newInitiative.name" required>
+                            <select class="form-select" id="name" v-model="newInitiative.name" required>
+                                <option v-for="n in root.names" :key="n.id" :value="n.name">{{ n.name }}</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label for="date" class="form-label">実施日</label>
@@ -200,9 +207,7 @@
                         <div class="col-md-6">
                             <label for="category" class="form-label">分類</label>
                             <select class="form-select" id="category" v-model="newInitiative.category" required>
-                                <option>粗利率改善</option>
-                                <option>固定費コントロール</option>
-                                <option>粗利額アップ</option>
+                                <option v-for="c in root.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
                             </select>
                         </div>
                         <div class="col-12">
@@ -215,6 +220,7 @@
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary mt-4" :disabled="isSubmitting">{{ isEdit ? '更新する' : '登録する' }}</button>
+                    <button type="button" class="btn btn-danger mt-4 ms-2" v-if="isEdit" @click="remove">削除</button>
                 </form>
             </div>
             <div v-if="isSubmitting" class="loading-overlay">
@@ -286,6 +292,46 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </script>
+
+    <script type="text/x-template" id="settings-template">
+        <div class="card">
+            <div class="card-header">設定</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-4">
+                        <h5>部門</h5>
+                        <ul class="list-group mb-2">
+                            <li class="list-group-item" v-for="d in root.departments" :key="d.id">{{ d.name }}</li>
+                        </ul>
+                        <form class="d-flex" @submit.prevent="addDepartment">
+                            <input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加...">
+                            <button class="btn btn-primary">追加</button>
+                        </form>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <h5>氏名</h5>
+                        <ul class="list-group mb-2">
+                            <li class="list-group-item" v-for="n in root.names" :key="n.id">{{ n.name }}</li>
+                        </ul>
+                        <form class="d-flex" @submit.prevent="addName">
+                            <input type="text" class="form-control me-2" v-model="newName" placeholder="追加...">
+                            <button class="btn btn-primary">追加</button>
+                        </form>
+                    </div>
+                    <div class="col-md-4 mb-4">
+                        <h5>分類</h5>
+                        <ul class="list-group mb-2">
+                            <li class="list-group-item" v-for="c in root.categories" :key="c.id">{{ c.name }}</li>
+                        </ul>
+                        <form class="d-flex" @submit.prevent="addCategory">
+                            <input type="text" class="form-control me-2" v-model="newCategory" placeholder="追加...">
+                            <button class="btn btn-primary">追加</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -426,7 +472,14 @@ const InitiativeForm = {
                     }
                 };
 
-                return { newInitiative, submit, isEdit, isSubmitting };
+                const remove = async () => {
+                    if (!isEdit.value) return;
+                    if (!confirm('本当に削除しますか？')) return;
+                    await root.deleteInitiative(parseInt(route.params.id));
+                    await router.push('/list');
+                };
+
+                return { newInitiative, submit, isEdit, isSubmitting, remove, root };
             }
         };
 
@@ -500,11 +553,50 @@ const InitiativeList = {
             }
         };
 
+        const Settings = {
+            template: '#settings-template',
+            setup() {
+                const root = inject('root');
+                const newDepartment = ref('');
+                const newName = ref('');
+                const newCategory = ref('');
+
+                const addDepartment = async () => {
+                    if (!newDepartment.value) return;
+                    await root.addDepartment(newDepartment.value);
+                    newDepartment.value = '';
+                };
+
+                const addName = async () => {
+                    if (!newName.value) return;
+                    await root.addName(newName.value);
+                    newName.value = '';
+                };
+
+                const addCategory = async () => {
+                    if (!newCategory.value) return;
+                    await root.addCategory(newCategory.value);
+                    newCategory.value = '';
+                };
+
+                return {
+                    root,
+                    newDepartment,
+                    newName,
+                    newCategory,
+                    addDepartment,
+                    addName,
+                    addCategory
+                };
+            }
+        };
+
         // --- Router ---
         const routes = [
             { path: '/', component: Dashboard },
             { path: '/form/:id?', component: InitiativeForm },
             { path: '/list', component: InitiativeList },
+            { path: '/settings', component: Settings },
         ];
         const router = createRouter({
             history: createWebHashHistory(),
@@ -516,6 +608,9 @@ const InitiativeList = {
         const app = createApp({
             setup() {
                 const initiatives = ref([]);
+                const departments = ref([]);
+                const names = ref([]);
+                const categories = ref([]);
 
                 const fetchInitiatives = async () => {
                     try {
@@ -523,6 +618,33 @@ const InitiativeList = {
                         initiatives.value = await response.json();
                     } catch (error) {
                         console.error('Error fetching initiatives:', error);
+                    }
+                };
+
+                const fetchDepartments = async () => {
+                    try {
+                        const response = await fetch('/api/departments');
+                        departments.value = await response.json();
+                    } catch (error) {
+                        console.error('Error fetching departments:', error);
+                    }
+                };
+
+                const fetchNames = async () => {
+                    try {
+                        const response = await fetch('/api/names');
+                        names.value = await response.json();
+                    } catch (error) {
+                        console.error('Error fetching names:', error);
+                    }
+                };
+
+                const fetchCategories = async () => {
+                    try {
+                        const response = await fetch('/api/categories');
+                        categories.value = await response.json();
+                    } catch (error) {
+                        console.error('Error fetching categories:', error);
                     }
                 };
 
@@ -534,7 +656,7 @@ const InitiativeList = {
                             body: JSON.stringify(newInitiative),
                         });
                         if (response.ok) {
-                            await fetchInitiatives(); // Refresh data
+                            await fetchInitiatives();
                         }
                     } catch (error) {
                         console.error('Error submitting initiative:', error);
@@ -556,6 +678,62 @@ const InitiativeList = {
                     }
                 };
 
+                const deleteInitiative = async (id) => {
+                    try {
+                        const response = await fetch(`/api/initiatives/${id}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            await fetchInitiatives();
+                        }
+                    } catch (error) {
+                        console.error('Error deleting initiative:', error);
+                    }
+                };
+
+                const addDepartment = async (name) => {
+                    try {
+                        const response = await fetch('/api/departments', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name }),
+                        });
+                        if (response.ok) {
+                            await fetchDepartments();
+                        }
+                    } catch (error) {
+                        console.error('Error adding department:', error);
+                    }
+                };
+
+                const addName = async (name) => {
+                    try {
+                        const response = await fetch('/api/names', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name }),
+                        });
+                        if (response.ok) {
+                            await fetchNames();
+                        }
+                    } catch (error) {
+                        console.error('Error adding name:', error);
+                    }
+                };
+
+                const addCategory = async (name) => {
+                    try {
+                        const response = await fetch('/api/categories', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name }),
+                        });
+                        if (response.ok) {
+                            await fetchCategories();
+                        }
+                    } catch (error) {
+                        console.error('Error adding category:', error);
+                    }
+                };
+
                 const formatCurrency = (value) => new Intl.NumberFormat('ja-JP').format(value);
 
                 const getCategoryClass = (category) => {
@@ -573,14 +751,29 @@ const InitiativeList = {
                     if (instance) instance.hide();
                 };
 
-                onMounted(fetchInitiatives);
+                onMounted(() => {
+                    fetchInitiatives();
+                    fetchDepartments();
+                    fetchNames();
+                    fetchCategories();
+                });
 
                 // Provide shared state and methods to all components
                 provide('root', {
                     initiatives,
+                    departments,
+                    names,
+                    categories,
                     fetchInitiatives,
                     submitInitiative,
                     updateInitiative,
+                    deleteInitiative,
+                    fetchDepartments,
+                    fetchNames,
+                    fetchCategories,
+                    addDepartment,
+                    addName,
+                    addCategory,
                     formatCurrency,
                     getCategoryClass
                 });
