@@ -45,6 +45,10 @@
         .th-sortable:hover {
             background-color: #f8f9fa;
         }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
         .fade-enter-active, .fade-leave-active {
             transition: opacity 0.3s ease;
         }
@@ -135,7 +139,9 @@
                     <div class="card">
                         <div class="card-header">分類別 金額</div>
                         <div class="card-body">
-                            <canvas ref="categoryChart"></canvas>
+                            <div class="chart-container">
+                                <canvas ref="categoryChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -143,7 +149,9 @@
                     <div class="card">
                         <div class="card-header">部門別 金額</div>
                         <div class="card-body">
-                            <canvas ref="departmentChart"></canvas>
+                            <div class="chart-container">
+                                <canvas ref="departmentChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -307,7 +315,7 @@
                                         backgroundColor: ['#ffc107', '#dc3545', '#28a745']
                                     }]
                                 },
-                                options: { responsive: true, plugins: { legend: { position: 'top' } } }
+                                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
                             });
                         } else {
                             categoryChartInstance.data.labels = labels;
@@ -330,7 +338,7 @@
                                         backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
                                     }]
                                 },
-                                options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+                                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                             });
                         } else {
                             departmentChartInstance.data.labels = labels;
