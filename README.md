@@ -8,17 +8,17 @@
 - 分類別・部門別の貢献金額のグラフ表示
 
 ## 使用技術
-- バックエンド: Flask (Python)
+- バックエンド: Flask (Python) / Gunicorn
 - フロントエンド: Vue.js, Bootstrap
 - データベース: SQLite
-- コンテナ: Docker
+- コンテナ: Docker (軽量な Python Alpine ベースイメージ)
 
 ## 実行方法
 
 ### Docker での起動
-1. イメージをビルド  
+1. イメージをビルド
    `docker build -t performance-dashboard .`
-2. コンテナを起動  
+2. コンテナを起動
    `docker run -p 5000:5000 -v $(pwd)/data:/data performance-dashboard`
 
    `/data` にマウントしたディレクトリに SQLite データベースが保存されます。  
