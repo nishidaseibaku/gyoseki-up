@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, g
 import sqlite3
 import os
 
@@ -94,10 +94,18 @@ def init_db():
     conn.close()
 
 
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DATABASE)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exception):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
 
 
 init_db()
@@ -112,9 +120,8 @@ def index():
 # API: 全ての取り組み実績を取得
 @app.route("/api/initiatives", methods=["GET"])
 def get_initiatives():
-    conn = get_db_connection()
+    conn = get_db()
     initiatives = [dict(row) for row in conn.execute("SELECT * FROM initiatives")]
-    conn.close()
     return jsonify(initiatives)
 
 
@@ -129,7 +136,7 @@ def add_initiative():
     ):
         return jsonify({"error": "Missing data"}), 400
 
-    conn = get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute(
         """
@@ -147,7 +154,6 @@ def add_initiative():
     )
     conn.commit()
     item_id = c.lastrowid
-    conn.close()
 
     return (
         jsonify(
@@ -169,12 +175,11 @@ def add_initiative():
 @app.route("/api/initiatives/<int:item_id>", methods=["PUT"])
 def update_initiative(item_id):
     data = request.json
-    conn = get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("SELECT * FROM initiatives WHERE id = ?", (item_id,))
     row = c.fetchone()
     if not row:
-        conn.close()
         return jsonify({"error": "Not found"}), 404
 
     updated = {
@@ -203,7 +208,6 @@ def update_initiative(item_id):
         ),
     )
     conn.commit()
-    conn.close()
 
     return jsonify({"id": item_id, **updated})
 
@@ -211,62 +215,52 @@ def update_initiative(item_id):
 # API: 取り組みを削除
 @app.route("/api/initiatives/<int:item_id>", methods=["DELETE"])
 def delete_initiative(item_id):
-    conn = get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     c.execute("DELETE FROM initiatives WHERE id = ?", (item_id,))
     if c.rowcount == 0:
-        conn.close()
         return jsonify({"error": "Not found"}), 404
     conn.commit()
-    conn.close()
     return "", 204
 
 
 # 共通関数: シンプルな設定マスタのCRUD(追加と一覧)
 def handle_simple_table(table_name):
-    conn = get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     if request.method == "GET":
         rows = [dict(row) for row in c.execute(f"SELECT * FROM {table_name} ORDER BY name")]
-        conn.close()
         return jsonify(rows)
     else:
         data = request.json or {}
         if "name" not in data:
-            conn.close()
             return jsonify({"error": "Missing name"}), 400
         c.execute(f"INSERT INTO {table_name} (name) VALUES (?)", (data["name"],))
         conn.commit()
         item_id = c.lastrowid
-        conn.close()
         return jsonify({"id": item_id, "name": data["name"]}), 201
 
 
 def handle_simple_table_item(table_name, item_id):
-    conn = get_db_connection()
+    conn = get_db()
     c = conn.cursor()
     if request.method == "PUT":
         data = request.json or {}
         if "name" not in data:
-            conn.close()
             return jsonify({"error": "Missing name"}), 400
         c.execute(
             f"UPDATE {table_name} SET name = ? WHERE id = ?",
             (data["name"], item_id),
         )
         if c.rowcount == 0:
-            conn.close()
             return jsonify({"error": "Not found"}), 404
         conn.commit()
-        conn.close()
         return jsonify({"id": item_id, "name": data["name"]})
     else:
         c.execute(f"DELETE FROM {table_name} WHERE id = ?", (item_id,))
         if c.rowcount == 0:
-            conn.close()
             return jsonify({"error": "Not found"}), 404
         conn.commit()
-        conn.close()
         return "", 204
 
 
