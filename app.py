@@ -117,11 +117,26 @@ def index():
     return render_template("index.html")
 
 
-# API: 全ての取り組み実績を取得
+# API: 全ての取り組み実績を取得（期間指定可能）
 @app.route("/api/initiatives", methods=["GET"])
 def get_initiatives():
     conn = get_db()
-    initiatives = [dict(row) for row in conn.execute("SELECT * FROM initiatives")]
+    start = request.args.get("start")
+    end = request.args.get("end")
+
+    query = "SELECT * FROM initiatives"
+    params = []
+    if start and end:
+        query += " WHERE date BETWEEN ? AND ?"
+        params.extend([start, end])
+    elif start:
+        query += " WHERE date >= ?"
+        params.append(start)
+    elif end:
+        query += " WHERE date <= ?"
+        params.append(end)
+
+    initiatives = [dict(row) for row in conn.execute(query, params)]
     return jsonify(initiatives)
 
 

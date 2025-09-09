@@ -136,6 +136,22 @@
     <!-- Component Templates -->
     <script type="text/x-template" id="dashboard-template">
         <div>
+            <!-- Date Filters -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label for="dashStart" class="form-label">開始日</label>
+                    <input type="date" id="dashStart" class="form-control" v-model="root.filterStart">
+                </div>
+                <div class="col-md-3">
+                    <label for="dashEnd" class="form-label">終了日</label>
+                    <input type="date" id="dashEnd" class="form-control" v-model="root.filterEnd">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
+                    <button class="btn btn-secondary" @click="root.filterStart=''; root.filterEnd=''; root.fetchInitiatives()">リセット</button>
+                </div>
+            </div>
+
             <!-- KPI Cards -->
             <div class="row">
                 <div class="col-md-6 mb-4">
@@ -245,15 +261,23 @@
             <div class="card-body">
                 <!-- Filters -->
                 <div class="row g-3 mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label for="listStart" class="form-label">開始日</label>
+                        <input type="date" id="listStart" class="form-control" v-model="root.filterStart">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="listEnd" class="form-label">終了日</label>
+                        <input type="date" id="listEnd" class="form-control" v-model="root.filterEnd">
+                    </div>
+                    <div class="col-md-2">
                         <label for="filterName" class="form-label">氏名</label>
                         <input type="text" id="filterName" class="form-control" v-model="filters.name" placeholder="氏名で検索...">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="filterDepartment" class="form-label">部門</label>
                         <input type="text" id="filterDepartment" class="form-control" v-model="filters.department" placeholder="部門で検索...">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label for="filterCategory" class="form-label">分類</label>
                         <select id="filterCategory" class="form-select" v-model="filters.category">
                             <option value="">すべて</option>
@@ -262,7 +286,8 @@
                             <option>粗利額アップ</option>
                         </select>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
                         <button class="btn btn-secondary" @click="resetFilters">リセット</button>
                     </div>
                 </div>
@@ -482,7 +507,7 @@
                     if (departmentChartInstance) departmentChartInstance.destroy();
                 });
 
-                return { totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart };
+                return { root, totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart };
             }
         };
 
@@ -584,6 +609,9 @@ const InitiativeList = {
                 
                 const resetFilters = () => {
                     filters.value = { name: '', department: '', category: '' };
+                    root.filterStart.value = '';
+                    root.filterEnd.value = '';
+                    root.fetchInitiatives();
                 };
 
                 const edit = (id) => {
@@ -591,6 +619,7 @@ const InitiativeList = {
                 };
 
                 return {
+                    root,
                     filters,
                     sortBy,
                     sortIcon,
@@ -738,6 +767,8 @@ const InitiativeList = {
                 const departments = ref([]);
                 const names = ref([]);
                 const categories = ref([]);
+                const filterStart = ref('');
+                const filterEnd = ref('');
 
                 const loadingCount = ref(0);
                 const isLoading = computed(() => loadingCount.value > 0);
@@ -753,7 +784,12 @@ const InitiativeList = {
                 const fetchInitiatives = async () => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/initiatives');
+                            let url = '/api/initiatives';
+                            const params = [];
+                            if (filterStart.value) params.push(`start=${filterStart.value}`);
+                            if (filterEnd.value) params.push(`end=${filterEnd.value}`);
+                            if (params.length) url += `?${params.join('&')}`;
+                            const response = await fetch(url);
                             initiatives.value = await response.json();
                         } catch (error) {
                             console.error('Error fetching initiatives:', error);
@@ -1012,6 +1048,8 @@ const InitiativeList = {
                       departments,
                       names,
                       categories,
+                      filterStart,
+                      filterEnd,
                       fetchInitiatives,
                       submitInitiative,
                       updateInitiative,
@@ -1033,7 +1071,7 @@ const InitiativeList = {
                       isLoading
                   });
 
-                  return { initiatives, hideOffcanvas, isLoading };
+                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives };
             }
         });
 
