@@ -20,6 +20,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             department TEXT NOT NULL,
             name TEXT NOT NULL,
+            title TEXT NOT NULL,
             date TEXT NOT NULL,
             category TEXT NOT NULL,
             content TEXT NOT NULL,
@@ -53,6 +54,13 @@ def init_db():
     )
     conn.commit()
 
+    # 既存テーブルに title 列がない場合は追加
+    c.execute("PRAGMA table_info(initiatives)")
+    columns = [row[1] for row in c.fetchall()]
+    if "title" not in columns:
+        c.execute("ALTER TABLE initiatives ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+
     c.execute("SELECT COUNT(*) FROM categories")
     if c.fetchone()[0] == 0:
         c.executemany(
@@ -77,16 +85,48 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM initiatives")
     if c.fetchone()[0] == 0:
         samples = [
-            ("営業1課", "山田 太郎", "2025-08-15", "粗利額アップ", "新規大型案件の受注", 1500000),
-            ("開発部", "鈴木 一郎", "2025-08-20", "固定費コントロール", "クラウドサーバー費用の最適化", 80000),
-            ("営業2課", "佐藤 花子", "2025-08-25", "粗利率改善", "高利益率商品の提案比率向上", 250000),
-            ("営業1課", "高橋 健太", "2025-09-01", "粗利額アップ", "アップセル提案による追加受注", 450000),
+            (
+                "営業1課",
+                "山田 太郎",
+                "大型案件受注",
+                "2025-08-15",
+                "粗利額アップ",
+                "新規大型案件の受注",
+                1500000,
+            ),
+            (
+                "開発部",
+                "鈴木 一郎",
+                "サーバー費用最適化",
+                "2025-08-20",
+                "固定費コントロール",
+                "クラウドサーバー費用の最適化",
+                80000,
+            ),
+            (
+                "営業2課",
+                "佐藤 花子",
+                "高利益率提案",
+                "2025-08-25",
+                "粗利率改善",
+                "高利益率商品の提案比率向上",
+                250000,
+            ),
+            (
+                "営業1課",
+                "高橋 健太",
+                "アップセル追加受注",
+                "2025-09-01",
+                "粗利額アップ",
+                "アップセル提案による追加受注",
+                450000,
+            ),
         ]
         c.executemany(
             """
             INSERT INTO initiatives (
-                department, name, date, category, content, amount
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                department, name, title, date, category, content, amount
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             samples,
         )
@@ -147,7 +187,7 @@ def add_initiative():
 
     # 簡単なバリデーション
     if not all(
-        k in data for k in ["department", "name", "date", "category", "content", "amount"]
+        k in data for k in ["department", "name", "title", "date", "category", "content", "amount"]
     ):
         return jsonify({"error": "Missing data"}), 400
 
@@ -155,12 +195,13 @@ def add_initiative():
     c = conn.cursor()
     c.execute(
         """
-        INSERT INTO initiatives (department, name, date, category, content, amount)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO initiatives (department, name, title, date, category, content, amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
             data["department"],
             data["name"],
+            data["title"],
             data["date"],
             data["category"],
             data["content"],
@@ -176,6 +217,7 @@ def add_initiative():
                 "id": item_id,
                 "department": data["department"],
                 "name": data["name"],
+                "title": data["title"],
                 "date": data["date"],
                 "category": data["category"],
                 "content": data["content"],
@@ -200,6 +242,7 @@ def update_initiative(item_id):
     updated = {
         "department": data.get("department", row["department"]),
         "name": data.get("name", row["name"]),
+        "title": data.get("title", row["title"]),
         "date": data.get("date", row["date"]),
         "category": data.get("category", row["category"]),
         "content": data.get("content", row["content"]),
@@ -209,12 +252,13 @@ def update_initiative(item_id):
     c.execute(
         """
         UPDATE initiatives
-        SET department = ?, name = ?, date = ?, category = ?, content = ?, amount = ?
+        SET department = ?, name = ?, title = ?, date = ?, category = ?, content = ?, amount = ?
         WHERE id = ?
         """,
         (
             updated["department"],
             updated["name"],
+            updated["title"],
             updated["date"],
             updated["category"],
             updated["content"],
