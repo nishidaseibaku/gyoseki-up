@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, render_template, g
 import sqlite3
 import os
+import json
 
 
 app = Flask(__name__)
@@ -146,6 +147,28 @@ def init_db():
             "INSERT INTO settings (key, value) VALUES ('goal_amount', '0')"
         )
         conn.commit()
+
+    c.execute("SELECT COUNT(*) FROM settings WHERE key = 'about_text'")
+    if c.fetchone()[0] == 0:
+        c.execute(
+            "INSERT INTO settings (key, value) VALUES ('about_text', '業績アップ活動とは、売上の向上やコスト削減など会社の収益性を高めるための取り組みの総称です。')"
+        )
+        conn.commit()
+
+    c.execute("SELECT COUNT(*) FROM settings WHERE key = 'default_start'")
+    if c.fetchone()[0] == 0:
+        c.execute("INSERT INTO settings (key, value) VALUES ('default_start', '')")
+        conn.commit()
+
+    c.execute("SELECT COUNT(*) FROM settings WHERE key = 'default_end'")
+    if c.fetchone()[0] == 0:
+        c.execute("INSERT INTO settings (key, value) VALUES ('default_end', '')")
+        conn.commit()
+
+    c.execute("SELECT COUNT(*) FROM settings WHERE key = 'category_goals'")
+    if c.fetchone()[0] == 0:
+        c.execute("INSERT INTO settings (key, value) VALUES ('category_goals', '{}')")
+        conn.commit()
     conn.close()
 
 
@@ -218,12 +241,18 @@ def bootstrap_data():
     departments = [dict(row) for row in conn.execute("SELECT * FROM departments ORDER BY name")]
     names = [dict(row) for row in conn.execute("SELECT * FROM names ORDER BY name")]
     categories = [dict(row) for row in conn.execute("SELECT * FROM categories ORDER BY name")]
+    about_row = conn.execute("SELECT value FROM settings WHERE key = 'about_text'").fetchone()
+    goals_row = conn.execute("SELECT value FROM settings WHERE key = 'category_goals'").fetchone()
+    about_text = about_row["value"] if about_row else ""
+    category_goals = json.loads(goals_row["value"]) if goals_row and goals_row["value"] else {}
     return jsonify(
         {
             "initiatives": initiatives,
             "departments": departments,
             "names": names,
             "categories": categories,
+            "about_text": about_text,
+            "category_goals": category_goals,
         }
     )
 
@@ -424,6 +453,89 @@ def manage_goal():
         )
         conn.commit()
         return jsonify({"goal": goal})
+
+
+@app.route("/api/about", methods=["GET", "PUT"])
+def manage_about():
+    conn = get_db()
+    c = conn.cursor()
+    if request.method == "GET":
+        c.execute("SELECT value FROM settings WHERE key = 'about_text'")
+        row = c.fetchone()
+        text = row["value"] if row else ""
+        return jsonify({"text": text})
+    else:
+        data = request.json or {}
+        if "text" not in data:
+            return jsonify({"error": "Missing text"}), 400
+        c.execute(
+            """
+            INSERT INTO settings (key, value) VALUES ('about_text', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (data["text"],),
+        )
+        conn.commit()
+        return jsonify({"text": data["text"]})
+
+
+@app.route("/api/default-period", methods=["GET", "PUT"])
+def manage_default_period():
+    conn = get_db()
+    c = conn.cursor()
+    if request.method == "GET":
+        c.execute("SELECT value FROM settings WHERE key = 'default_start'")
+        row_start = c.fetchone()
+        c.execute("SELECT value FROM settings WHERE key = 'default_end'")
+        row_end = c.fetchone()
+        return jsonify(
+            {
+                "start": row_start["value"] if row_start else "",
+                "end": row_end["value"] if row_end else "",
+            }
+        )
+    else:
+        data = request.json or {}
+        start = data.get("start", "")
+        end = data.get("end", "")
+        c.execute(
+            """
+            INSERT INTO settings (key, value) VALUES ('default_start', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (start,),
+        )
+        c.execute(
+            """
+            INSERT INTO settings (key, value) VALUES ('default_end', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (end,),
+        )
+        conn.commit()
+        return jsonify({"start": start, "end": end})
+
+
+@app.route("/api/category-goals", methods=["GET", "PUT"])
+def manage_category_goals():
+    conn = get_db()
+    c = conn.cursor()
+    if request.method == "GET":
+        c.execute("SELECT value FROM settings WHERE key = 'category_goals'")
+        row = c.fetchone()
+        goals = json.loads(row["value"]) if row and row["value"] else {}
+        return jsonify(goals)
+    else:
+        data = request.json or {}
+        c.execute(
+            """
+            INSERT INTO settings (key, value) VALUES ('category_goals', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (json.dumps(data),),
+        )
+        conn.commit()
+        return jsonify(data)
 
 
 if __name__ == "__main__":
