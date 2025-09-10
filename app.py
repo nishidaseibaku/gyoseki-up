@@ -184,6 +184,21 @@ def close_db(exception):
 init_db()
 
 
+def build_date_query(base_query, start, end):
+    query = base_query
+    params = []
+    if start and end:
+        query += " WHERE date BETWEEN ? AND ?"
+        params.extend([start, end])
+    elif start:
+        query += " WHERE date >= ?"
+        params.append(start)
+    elif end:
+        query += " WHERE date <= ?"
+        params.append(end)
+    return query, params
+
+
 # フロントエンドのVue.jsアプリケーションを提供
 @app.route("/")
 def index():
@@ -196,19 +211,7 @@ def get_initiatives():
     conn = get_db()
     start = request.args.get("start")
     end = request.args.get("end")
-
-    query = "SELECT * FROM initiatives"
-    params = []
-    if start and end:
-        query += " WHERE date BETWEEN ? AND ?"
-        params.extend([start, end])
-    elif start:
-        query += " WHERE date >= ?"
-        params.append(start)
-    elif end:
-        query += " WHERE date <= ?"
-        params.append(end)
-
+    query, params = build_date_query("SELECT * FROM initiatives", start, end)
     initiatives = [dict(row) for row in conn.execute(query, params)]
     return jsonify(initiatives)
 
@@ -219,19 +222,16 @@ def bootstrap_data():
     conn = get_db()
     start = request.args.get("start")
     end = request.args.get("end")
+    default_start_row = conn.execute("SELECT value FROM settings WHERE key = 'default_start'").fetchone()
+    default_end_row = conn.execute("SELECT value FROM settings WHERE key = 'default_end'").fetchone()
+    default_start = default_start_row["value"] if default_start_row else ""
+    default_end = default_end_row["value"] if default_end_row else ""
 
-    query = "SELECT * FROM initiatives"
-    params = []
-    if start and end:
-        query += " WHERE date BETWEEN ? AND ?"
-        params.extend([start, end])
-    elif start:
-        query += " WHERE date >= ?"
-        params.append(start)
-    elif end:
-        query += " WHERE date <= ?"
-        params.append(end)
-
+    query, params = build_date_query(
+        "SELECT * FROM initiatives",
+        start or (default_start or None),
+        end or (default_end or None),
+    )
     initiatives = [dict(row) for row in conn.execute(query, params)]
     departments = [dict(row) for row in conn.execute("SELECT * FROM departments ORDER BY name")]
     names = [dict(row) for row in conn.execute("SELECT * FROM names ORDER BY name")]
@@ -248,6 +248,8 @@ def bootstrap_data():
             "categories": categories,
             "about_text": about_text,
             "category_goals": category_goals,
+            "default_start": default_start,
+            "default_end": default_end,
         }
     )
 
