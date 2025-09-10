@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request, render_template, g
 import sqlite3
 import os
 import json
+import csv
+import io
 
 
 app = Flask(__name__)
@@ -406,6 +408,33 @@ def manage_department_item(item_id):
 @app.route("/api/names", methods=["GET", "POST"])
 def manage_names():
     return handle_simple_table("names")
+
+
+@app.route("/api/names/import", methods=["POST"])
+def import_names_csv():
+    if "file" not in request.files:
+        return jsonify({"error": "No file"}), 400
+    file = request.files["file"]
+    if not file or file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+    content = file.stream.read().decode("utf-8-sig")
+    reader = csv.reader(io.StringIO(content))
+    conn = get_db()
+    c = conn.cursor()
+    inserted = 0
+    for row in reader:
+        if not row:
+            continue
+        name = row[0].strip()
+        if not name:
+            continue
+        try:
+            c.execute("INSERT INTO names (name) VALUES (?)", (name,))
+            inserted += 1
+        except sqlite3.IntegrityError:
+            pass
+    conn.commit()
+    return jsonify({"inserted": inserted}), 201
 
 
 @app.route("/api/names/<int:item_id>", methods=["PUT", "DELETE"])

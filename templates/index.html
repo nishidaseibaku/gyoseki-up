@@ -433,6 +433,10 @@
                             <clearable-input type="text" class="form-control me-2" v-model="newName" placeholder="追加..."></clearable-input>
                             <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
                         </form>
+                        <form class="d-flex mt-2" @submit.prevent="importNamesCsv">
+                            <input type="file" accept=".csv" class="form-control me-2" ref="namesFile">
+                            <button class="btn btn-secondary" :disabled="root.isLoading.value">CSVインポート</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -786,6 +790,7 @@ const InitiativeList = {
                 const root = inject('root');
                   const newDepartment = ref('');
                   const newName = ref('');
+                  const namesFile = ref(null);
                   const newCategory = ref('');
                   const aboutInput = ref(root.aboutText.value);
                   watch(root.aboutText, v => (aboutInput.value = v));
@@ -850,6 +855,13 @@ const InitiativeList = {
                       await root.deleteName(id);
                   };
 
+                  const importNamesCsv = async () => {
+                      const file = namesFile.value?.files[0];
+                      if (!file) return;
+                      await root.importNames(file);
+                      namesFile.value.value = '';
+                  };
+
                   const addCategory = async () => {
                       if (!newCategory.value) return;
                       await root.addCategory(newCategory.value);
@@ -887,6 +899,7 @@ const InitiativeList = {
                       root,
                       newDepartment,
                       newName,
+                      namesFile,
                       newCategory,
                       aboutInput,
                       defaultStartInput,
@@ -908,6 +921,7 @@ const InitiativeList = {
                       cancelNameEdit,
                       saveName,
                       removeName,
+                      importNamesCsv,
                       addCategory,
                       startCategoryEdit,
                       cancelCategoryEdit,
@@ -1201,6 +1215,24 @@ const InitiativeList = {
                     });
                 };
 
+                const importNames = async (file) => {
+                    await withLoading(async () => {
+                        try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            const response = await fetch('/api/names/import', {
+                                method: 'POST',
+                                body: formData,
+                            });
+                            if (response.ok) {
+                                await fetchNames();
+                            }
+                        } catch (error) {
+                            console.error('Error importing names:', error);
+                        }
+                    });
+                };
+
                 const addCategory = async (name) => {
                     await withLoading(async () => {
                         try {
@@ -1351,6 +1383,7 @@ const InitiativeList = {
                       fetchCategories,
                       addDepartment,
                       addName,
+                      importNames,
                       addCategory,
                       updateDepartment,
                       deleteDepartment,
