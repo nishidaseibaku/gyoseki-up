@@ -140,15 +140,15 @@
             <div class="row g-3 mb-4">
                 <div class="col-md-3">
                     <label for="dashStart" class="form-label">開始日</label>
-                    <input type="date" id="dashStart" class="form-control" v-model="root.filterStart">
+                    <input type="date" id="dashStart" class="form-control" v-model="root.filterStart.value">
                 </div>
                 <div class="col-md-3">
                     <label for="dashEnd" class="form-label">終了日</label>
-                    <input type="date" id="dashEnd" class="form-control" v-model="root.filterEnd">
+                    <input type="date" id="dashEnd" class="form-control" v-model="root.filterEnd.value">
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
                     <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
-                    <button class="btn btn-secondary" @click="root.filterStart=''; root.filterEnd=''; root.fetchInitiatives()">リセット</button>
+                    <button class="btn btn-secondary" @click="root.filterStart.value=''; root.filterEnd.value=''; root.fetchInitiatives()">リセット</button>
                 </div>
             </div>
 
@@ -270,11 +270,11 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-2">
                         <label for="listStart" class="form-label">開始日</label>
-                        <input type="date" id="listStart" class="form-control" v-model="root.filterStart">
+                        <input type="date" id="listStart" class="form-control" v-model="root.filterStart.value">
                     </div>
                     <div class="col-md-2">
                         <label for="listEnd" class="form-label">終了日</label>
-                        <input type="date" id="listEnd" class="form-control" v-model="root.filterEnd">
+                        <input type="date" id="listEnd" class="form-control" v-model="root.filterEnd.value">
                     </div>
                     <div class="col-md-2">
                         <label for="filterName" class="form-label">氏名</label>
