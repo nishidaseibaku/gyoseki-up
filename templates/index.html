@@ -263,9 +263,14 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 取り組み実績一覧
-                <router-link to="/form" class="btn btn-primary">
-                    <i class="bi bi-plus-lg me-1"></i>新規登録
-                </router-link>
+                <div class="d-flex">
+                    <button class="btn btn-outline-secondary me-2" @click="exportCsv">
+                        <i class="bi bi-download me-1"></i>CSVエクスポート
+                    </button>
+                    <router-link to="/form" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-1"></i>新規登録
+                    </router-link>
+                </div>
             </div>
             <div class="card-body">
                 <!-- Filters -->
@@ -676,6 +681,31 @@ const InitiativeList = {
                     router.push({ path: '/form', query: { copy: id } });
                 };
 
+                const exportCsv = () => {
+                    const headers = ['実施日', '部門', '氏名', 'タイトル', '分類', '内容', '金額'];
+                    const rows = sortedInitiatives.value.map(item => [
+                        item.date,
+                        item.department,
+                        item.name,
+                        item.title,
+                        item.category,
+                        item.content,
+                        item.amount
+                    ]);
+                    const csvContent = [headers, ...rows]
+                        .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+                        .join('\r\n');
+                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'initiatives.csv';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                };
+
                 return {
                     root,
                     filters,
@@ -685,6 +715,7 @@ const InitiativeList = {
                     resetFilters,
                     edit,
                     copy,
+                    exportCsv,
                     getCategoryClass: root.getCategoryClass,
                     formatCurrency: root.formatCurrency
                 };
