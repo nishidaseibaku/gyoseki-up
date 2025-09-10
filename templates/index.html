@@ -169,14 +169,6 @@
                         <div class="card-header bg-success text-white">合計貢献金額</div>
                         <div class="card-body kpi-card">
                             ¥{{ formatCurrency(totalAmount) }}
-                            <div v-if="root.goalAmount.value > 0" class="mt-3 w-100">
-                                <div class="progress">
-                                    <div class="progress-bar" role="progressbar" :style="{ width: Math.min(progressPercent, 100) + '%' }" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
-                                        {{ Math.min(progressPercent, 100).toFixed(1) }}%
-                                    </div>
-                                </div>
-                                <small class="text-muted">目標: ¥{{ formatCurrency(root.goalAmount.value) }}</small>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -385,13 +377,6 @@
                 </div>
                 <button class="btn btn-primary" @click="saveCategoryGoals" :disabled="root.isLoading.value">保存</button>
             </div>
-            <div class="mb-4">
-                <label for="goalAmount" class="form-label">目標金額 (円)</label>
-                <div class="input-group">
-                    <clearable-input type="number" id="goalAmount" class="form-control" v-model="goalInput"></clearable-input>
-                    <button class="btn btn-primary" @click="saveGoal" :disabled="root.isLoading.value">保存</button>
-                </div>
-            </div>
             <div class="accordion" id="settingsAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingDepartment">
@@ -509,7 +494,7 @@
                 let categoryChartInstance = null;
                 let departmentChartInstance = null;
 
-                const totalAmount = computed(() => root.initiatives.value.reduce((sum, item) => sum + item.amount, 0));
+                const totalAmount = root.totalAmount;
 
                 const categorySummary = computed(() => {
                     const summary = {};
@@ -530,18 +515,11 @@
                     return summary;
                 });
 
-                const progressPercent = computed(() => {
-                    if (root.goalAmount.value > 0) {
-                        return (totalAmount.value / root.goalAmount.value) * 100;
-                    }
-                    return 0;
-                });
-
                 const renderCharts = () => {
                     if (categoryChart.value) {
                         const labels = Object.keys(categorySummary.value);
                         const data = Object.values(categorySummary.value);
-                        const colors = labels.map((_, idx) => colorPalette[idx % colorPalette.length]);
+                        const colors = labels.map(label => root.categoryColorMap.value[label]);
                         if (!categoryChartInstance) {
                             categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
                                 type: 'doughnut',
@@ -577,10 +555,10 @@
                     if (departmentChart.value) {
                         const labels = Object.keys(departmentCategorySummary.value);
                         const categoriesList = root.categories.value.map(c => c.name);
-                        const datasets = categoriesList.map((cat, idx) => ({
+                        const datasets = categoriesList.map(cat => ({
                             label: cat,
                             data: labels.map(dept => (departmentCategorySummary.value[dept][cat] || 0)),
-                            backgroundColor: colorPalette[idx % colorPalette.length]
+                            backgroundColor: root.categoryColorMap.value[cat]
                         }));
                         if (!departmentChartInstance) {
                             departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
@@ -617,7 +595,7 @@
                     if (departmentChartInstance) departmentChartInstance.destroy();
                 });
 
-                return { root, totalAmount, progressPercent, formatCurrency: root.formatCurrency, categoryChart, departmentChart, categorySummary };
+                return { root, totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart, categorySummary };
             }
         };
 
@@ -809,8 +787,6 @@ const InitiativeList = {
                   const newDepartment = ref('');
                   const newName = ref('');
                   const newCategory = ref('');
-                  const goalInput = ref(root.goalAmount.value);
-                  watch(root.goalAmount, v => (goalInput.value = v));
                   const aboutInput = ref(root.aboutText.value);
                   watch(root.aboutText, v => (aboutInput.value = v));
                   const defaultStartInput = ref(root.defaultStart.value);
@@ -897,9 +873,6 @@ const InitiativeList = {
                       await root.deleteCategory(id);
                   };
 
-                  const saveGoal = async () => {
-                      await root.updateGoal(goalInput.value || 0);
-                  };
                   const saveAbout = async () => {
                       await root.updateAbout(aboutInput.value || '');
                   };
@@ -915,7 +888,6 @@ const InitiativeList = {
                       newDepartment,
                       newName,
                       newCategory,
-                      goalInput,
                       aboutInput,
                       defaultStartInput,
                       defaultEndInput,
@@ -941,7 +913,6 @@ const InitiativeList = {
                       cancelCategoryEdit,
                       saveCategory,
                       removeCategory,
-                      saveGoal,
                       saveAbout,
                       saveDefaultPeriod,
                       saveCategoryGoals
@@ -982,9 +953,20 @@ const InitiativeList = {
                 const categoryGoals = ref({});
                 const defaultStart = ref('');
                 const defaultEnd = ref('');
-                const goalAmount = ref(0);
                 const filterStart = ref('');
                 const filterEnd = ref('');
+
+                const categoryColorMap = computed(() => {
+                    const map = {};
+                    categories.value.forEach((c, idx) => {
+                        map[c.name] = colorPalette[idx % colorPalette.length];
+                    });
+                    return map;
+                });
+
+                const totalAmount = computed(() =>
+                    initiatives.value.reduce((sum, item) => sum + item.amount, 0)
+                );
 
                 const loadingCount = ref(0);
                 const isLoading = computed(() => loadingCount.value > 0);
@@ -1134,36 +1116,6 @@ const InitiativeList = {
                             }
                         } catch (error) {
                             console.error('Error updating category goals:', error);
-                        }
-                    });
-                };
-
-                const fetchGoal = async () => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch('/api/goal');
-                            const data = await response.json();
-                            goalAmount.value = data.goal;
-                        } catch (error) {
-                            console.error('Error fetching goal:', error);
-                        }
-                    });
-                };
-
-                const updateGoal = async (goal) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch('/api/goal', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ goal })
-                            });
-                            if (response.ok) {
-                                const data = await response.json();
-                                goalAmount.value = data.goal;
-                            }
-                        } catch (error) {
-                            console.error('Error updating goal:', error);
                         }
                     });
                 };
@@ -1376,7 +1328,6 @@ const InitiativeList = {
                 onMounted(async () => {
                     await fetchDefaultPeriod();
                     await fetchBootstrap();
-                    fetchGoal();
                 });
 
                 // Provide shared state and methods to all components
@@ -1401,7 +1352,6 @@ const InitiativeList = {
                       addDepartment,
                       addName,
                       addCategory,
-                      updateGoal,
                       updateDepartment,
                       deleteDepartment,
                       updateName,
@@ -1414,7 +1364,8 @@ const InitiativeList = {
                       formatCurrency,
                       getCategoryClass,
                       isLoading,
-                      goalAmount
+                      categoryColorMap,
+                      totalAmount
                   });
 
                   return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives };
