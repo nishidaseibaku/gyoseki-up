@@ -144,23 +144,27 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
     <!-- Component Templates -->
+    <script type="text/x-template" id="date-filter-template">
+        <div class="row g-3 mb-4">
+            <div :class="`col-md-${startCol}`">
+                <label class="form-label">開始日</label>
+                <clearable-input type="date" class="form-control" v-model="root.filterStart.value"></clearable-input>
+            </div>
+            <div :class="`col-md-${endCol}`">
+                <label class="form-label">終了日</label>
+                <clearable-input type="date" class="form-control" v-model="root.filterEnd.value"></clearable-input>
+            </div>
+            <div :class="`col-md-${buttonCol} d-flex align-items-end`">
+                <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
+                <button class="btn btn-secondary" @click="reset">リセット</button>
+            </div>
+        </div>
+    </script>
+
     <script type="text/x-template" id="dashboard-template">
         <div>
             <!-- Date Filters -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <label for="dashStart" class="form-label">開始日</label>
-                    <clearable-input type="date" id="dashStart" class="form-control" v-model="root.filterStart.value"></clearable-input>
-                </div>
-                <div class="col-md-3">
-                    <label for="dashEnd" class="form-label">終了日</label>
-                    <clearable-input type="date" id="dashEnd" class="form-control" v-model="root.filterEnd.value"></clearable-input>
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
-                    <button class="btn btn-secondary" @click="root.filterStart.value=''; root.filterEnd.value=''; root.fetchInitiatives()">リセット</button>
-                </div>
-            </div>
+            <date-filter></date-filter>
 
             <!-- KPI Cards -->
             <div class="row">
@@ -283,15 +287,8 @@
             </div>
             <div class="card-body">
                 <!-- Filters -->
+                <date-filter :start-col="2" :end-col="2" :button-col="2" @reset="resetFilters"></date-filter>
                 <div class="row g-3 mb-4">
-                    <div class="col-md-2">
-                        <label for="listStart" class="form-label">開始日</label>
-                        <clearable-input type="date" id="listStart" class="form-control" v-model="root.filterStart.value"></clearable-input>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="listEnd" class="form-label">終了日</label>
-                        <clearable-input type="date" id="listEnd" class="form-control" v-model="root.filterEnd.value"></clearable-input>
-                    </div>
                     <div class="col-md-2">
                         <label for="filterName" class="form-label">氏名</label>
                         <tom-select id="filterName" class="form-select" :options="root.names.value.map(n => n.name)" v-model="filters.name" placeholder="氏名で検索..."></tom-select>
@@ -308,10 +305,6 @@
                             <option>固定費コントロール</option>
                             <option>粗利額アップ</option>
                         </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
-                        <button class="btn btn-secondary" @click="resetFilters">リセット</button>
                     </div>
                 </div>
 
@@ -484,7 +477,7 @@
 
     <script>
         Chart.register(ChartDataLabels);
-        const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount } = Vue;
+        const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount, toRefs } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
         const colorPalette = ['#0d6efd', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
 
@@ -730,9 +723,6 @@ const InitiativeList = {
                 
                 const resetFilters = () => {
                     filters.value = { name: '', department: '', category: '' };
-                    root.filterStart.value = '';
-                    root.filterEnd.value = '';
-                    root.fetchInitiatives();
                 };
 
                 const edit = (id) => {
@@ -1009,6 +999,10 @@ const InitiativeList = {
                             categories.value = data.categories;
                             aboutText.value = data.about_text || '';
                             categoryGoals.value = data.category_goals || {};
+                            defaultStart.value = data.default_start || '';
+                            defaultEnd.value = data.default_end || '';
+                            if (!filterStart.value) filterStart.value = defaultStart.value;
+                            if (!filterEnd.value) filterEnd.value = defaultEnd.value;
                         } catch (error) {
                             console.error('Error fetching bootstrap data:', error);
                         }
@@ -1060,21 +1054,6 @@ const InitiativeList = {
                             categories.value = await response.json();
                         } catch (error) {
                             console.error('Error fetching categories:', error);
-                        }
-                    });
-                };
-
-                const fetchDefaultPeriod = async () => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch('/api/default-period');
-                            const data = await response.json();
-                            defaultStart.value = data.start || '';
-                            defaultEnd.value = data.end || '';
-                            filterStart.value = defaultStart.value;
-                            filterEnd.value = defaultEnd.value;
-                        } catch (error) {
-                            console.error('Error fetching default period:', error);
                         }
                     });
                 };
@@ -1358,7 +1337,6 @@ const InitiativeList = {
                 };
 
                 onMounted(async () => {
-                    await fetchDefaultPeriod();
                     await fetchBootstrap();
                 });
 
@@ -1471,6 +1449,26 @@ const InitiativeList = {
                     <button v-if="modelValue" type="button" class="btn-close position-absolute top-50 end-0 translate-middle-y me-2" aria-label="Clear" @click="clear"></button>
                 </div>
             `
+        });
+
+        app.component('date-filter', {
+            template: '#date-filter-template',
+            props: {
+                startCol: { type: Number, default: 3 },
+                endCol: { type: Number, default: 3 },
+                buttonCol: { type: Number, default: 3 }
+            },
+            setup(props, { emit }) {
+                const root = inject('root');
+                const { startCol, endCol, buttonCol } = toRefs(props);
+                const reset = () => {
+                    root.filterStart.value = '';
+                    root.filterEnd.value = '';
+                    root.fetchInitiatives();
+                    emit('reset');
+                };
+                return { root, reset, startCol, endCol, buttonCol };
+            }
         });
 
         app.use(router);
