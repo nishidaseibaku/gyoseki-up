@@ -138,6 +138,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Tom Select JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
@@ -199,7 +200,15 @@
                                 <canvas ref="categoryChart"></canvas>
                             </div>
                             <ul class="mt-3 mb-0 list-unstyled">
-                                <li v-for="(amt, cat) in categorySummary" :key="cat">{{ cat }}: ¥{{ formatCurrency(amt) }}</li>
+                                <li v-for="(amt, cat) in categorySummary" :key="cat" class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>{{ cat }}: ¥{{ formatCurrency(amt) }}</span>
+                                        <span v-if="root.categoryGoals.value[cat] > 0">{{ (amt / root.categoryGoals.value[cat] * 100).toFixed(1) }}%</span>
+                                    </div>
+                                    <div v-if="root.categoryGoals.value[cat] > 0" class="progress">
+                                        <div class="progress-bar" :style="{ width: Math.min(amt / root.categoryGoals.value[cat] * 100, 100) + '%' }"></div>
+                                    </div>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -356,6 +365,27 @@
         <div>
             <h3 class="mb-3">設定</h3>
             <div class="mb-4">
+                <label for="aboutText" class="form-label">業績アップ活動の説明</label>
+                <textarea id="aboutText" class="form-control mb-2" rows="3" v-model="aboutInput"></textarea>
+                <button class="btn btn-primary" @click="saveAbout" :disabled="root.isLoading.value">保存</button>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">デフォルト期間</label>
+                <div class="row g-2">
+                    <div class="col"><input type="date" class="form-control" v-model="defaultStartInput"></div>
+                    <div class="col"><input type="date" class="form-control" v-model="defaultEndInput"></div>
+                    <div class="col-auto"><button class="btn btn-primary" @click="saveDefaultPeriod" :disabled="root.isLoading.value">保存</button></div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <h5 class="form-label">分類別目標金額 (円)</h5>
+                <div v-for="c in root.categories.value" :key="c.id" class="input-group mb-2">
+                    <span class="input-group-text">{{ c.name }}</span>
+                    <input type="number" class="form-control" v-model.number="categoryGoalsInput[c.name]">
+                </div>
+                <button class="btn btn-primary" @click="saveCategoryGoals" :disabled="root.isLoading.value">保存</button>
+            </div>
+            <div class="mb-4">
                 <label for="goalAmount" class="form-label">目標金額 (円)</label>
                 <div class="input-group">
                     <clearable-input type="number" id="goalAmount" class="form-control" v-model="goalInput"></clearable-input>
@@ -458,15 +488,16 @@
         <div class="card">
             <div class="card-header">業績アップ活動とは</div>
             <div class="card-body">
-                <p>業績アップ活動とは、売上の向上やコスト削減など会社の収益性を高めるための取り組みの総称です。</p>
-                <p>本システムでは、各部署・個人のアイデアを記録し共有することで、継続的な改善を促し、組織全体の成長を支援します。</p>
+                <p style="white-space: pre-wrap;">{{ root.aboutText.value }}</p>
             </div>
         </div>
     </script>
 
     <script>
+        Chart.register(ChartDataLabels);
         const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
+        const colorPalette = ['#0d6efd', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
 
         // --- Components ---
         const Dashboard = {
@@ -510,6 +541,7 @@
                     if (categoryChart.value) {
                         const labels = Object.keys(categorySummary.value);
                         const data = Object.values(categorySummary.value);
+                        const colors = labels.map((_, idx) => colorPalette[idx % colorPalette.length]);
                         if (!categoryChartInstance) {
                             categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
                                 type: 'doughnut',
@@ -517,26 +549,38 @@
                                     labels,
                                     datasets: [{
                                         data,
-                                        backgroundColor: ['#ffc107', '#dc3545', '#28a745']
+                                        backgroundColor: colors
                                     }]
                                 },
-                                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: { position: 'top' },
+                                        datalabels: {
+                                            formatter: (value, ctx) => {
+                                                const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                                return total ? (value / total * 100).toFixed(1) + '%' : '';
+                                            }
+                                        }
+                                    }
+                                }
                             });
                         } else {
                             categoryChartInstance.data.labels = labels;
                             categoryChartInstance.data.datasets[0].data = data;
+                            categoryChartInstance.data.datasets[0].backgroundColor = colors;
                             categoryChartInstance.update();
                         }
                     }
 
                     if (departmentChart.value) {
                         const labels = Object.keys(departmentCategorySummary.value);
-                        const categories = root.categories.value.map(c => c.name);
-                        const colors = ['#ffc107', '#dc3545', '#28a745', '#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
-                        const datasets = categories.map((cat, idx) => ({
+                        const categoriesList = root.categories.value.map(c => c.name);
+                        const datasets = categoriesList.map((cat, idx) => ({
                             label: cat,
                             data: labels.map(dept => (departmentCategorySummary.value[dept][cat] || 0)),
-                            backgroundColor: colors[idx % colors.length]
+                            backgroundColor: colorPalette[idx % colorPalette.length]
                         }));
                         if (!departmentChartInstance) {
                             departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
@@ -546,7 +590,16 @@
                                     responsive: true,
                                     maintainAspectRatio: false,
                                     scales: { x: { stacked: true }, y: { stacked: true } },
-                                    plugins: { legend: { position: 'top' } }
+                                    plugins: {
+                                        legend: { position: 'top' },
+                                        datalabels: {
+                                            formatter: (value, ctx) => {
+                                                const idx = ctx.dataIndex;
+                                                const total = ctx.chart.data.datasets.reduce((sum, d) => sum + d.data[idx], 0);
+                                                return total ? (value / total * 100).toFixed(1) + '%' : '';
+                                            }
+                                        }
+                                    }
                                 }
                             });
                         } else {
@@ -758,6 +811,14 @@ const InitiativeList = {
                   const newCategory = ref('');
                   const goalInput = ref(root.goalAmount.value);
                   watch(root.goalAmount, v => (goalInput.value = v));
+                  const aboutInput = ref(root.aboutText.value);
+                  watch(root.aboutText, v => (aboutInput.value = v));
+                  const defaultStartInput = ref(root.defaultStart.value);
+                  watch(root.defaultStart, v => (defaultStartInput.value = v));
+                  const defaultEndInput = ref(root.defaultEnd.value);
+                  watch(root.defaultEnd, v => (defaultEndInput.value = v));
+                  const categoryGoalsInput = ref({ ...root.categoryGoals.value });
+                  watch(root.categoryGoals, v => (categoryGoalsInput.value = { ...v }));
 
                   const editingDeptId = ref(null);
                   const editingDeptName = ref('');
@@ -839,6 +900,15 @@ const InitiativeList = {
                   const saveGoal = async () => {
                       await root.updateGoal(goalInput.value || 0);
                   };
+                  const saveAbout = async () => {
+                      await root.updateAbout(aboutInput.value || '');
+                  };
+                  const saveDefaultPeriod = async () => {
+                      await root.updateDefaultPeriod(defaultStartInput.value, defaultEndInput.value);
+                  };
+                  const saveCategoryGoals = async () => {
+                      await root.updateCategoryGoals(categoryGoalsInput.value);
+                  };
 
                   return {
                       root,
@@ -846,6 +916,10 @@ const InitiativeList = {
                       newName,
                       newCategory,
                       goalInput,
+                      aboutInput,
+                      defaultStartInput,
+                      defaultEndInput,
+                      categoryGoalsInput,
                       editingDeptId,
                       editingDeptName,
                       editingNameId,
@@ -867,13 +941,20 @@ const InitiativeList = {
                       cancelCategoryEdit,
                       saveCategory,
                       removeCategory,
-                      saveGoal
+                      saveGoal,
+                      saveAbout,
+                      saveDefaultPeriod,
+                      saveCategoryGoals
                   };
             }
         };
 
         const About = {
-            template: '#about-template'
+            template: '#about-template',
+            setup() {
+                const root = inject('root');
+                return { root };
+            }
         };
 
         // --- Router ---
@@ -897,6 +978,10 @@ const InitiativeList = {
                 const departments = ref([]);
                 const names = ref([]);
                 const categories = ref([]);
+                const aboutText = ref('');
+                const categoryGoals = ref({});
+                const defaultStart = ref('');
+                const defaultEnd = ref('');
                 const goalAmount = ref(0);
                 const filterStart = ref('');
                 const filterEnd = ref('');
@@ -926,6 +1011,8 @@ const InitiativeList = {
                             departments.value = data.departments;
                             names.value = data.names;
                             categories.value = data.categories;
+                            aboutText.value = data.about_text || '';
+                            categoryGoals.value = data.category_goals || {};
                         } catch (error) {
                             console.error('Error fetching bootstrap data:', error);
                         }
@@ -977,6 +1064,76 @@ const InitiativeList = {
                             categories.value = await response.json();
                         } catch (error) {
                             console.error('Error fetching categories:', error);
+                        }
+                    });
+                };
+
+                const fetchDefaultPeriod = async () => {
+                    await withLoading(async () => {
+                        try {
+                            const response = await fetch('/api/default-period');
+                            const data = await response.json();
+                            defaultStart.value = data.start || '';
+                            defaultEnd.value = data.end || '';
+                            filterStart.value = defaultStart.value;
+                            filterEnd.value = defaultEnd.value;
+                        } catch (error) {
+                            console.error('Error fetching default period:', error);
+                        }
+                    });
+                };
+
+                const updateDefaultPeriod = async (start, end) => {
+                    await withLoading(async () => {
+                        try {
+                            const response = await fetch('/api/default-period', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ start, end })
+                            });
+                            if (response.ok) {
+                                defaultStart.value = start;
+                                defaultEnd.value = end;
+                                filterStart.value = start;
+                                filterEnd.value = end;
+                            }
+                        } catch (error) {
+                            console.error('Error updating default period:', error);
+                        }
+                    });
+                };
+
+                const updateAbout = async (text) => {
+                    await withLoading(async () => {
+                        try {
+                            const response = await fetch('/api/about', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ text })
+                            });
+                            if (response.ok) {
+                                const data = await response.json();
+                                aboutText.value = data.text;
+                            }
+                        } catch (error) {
+                            console.error('Error updating about text:', error);
+                        }
+                    });
+                };
+
+                const updateCategoryGoals = async (goals) => {
+                    await withLoading(async () => {
+                        try {
+                            const response = await fetch('/api/category-goals', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(goals)
+                            });
+                            if (response.ok) {
+                                categoryGoals.value = goals;
+                            }
+                        } catch (error) {
+                            console.error('Error updating category goals:', error);
                         }
                     });
                 };
@@ -1216,8 +1373,9 @@ const InitiativeList = {
                     if (instance) instance.hide();
                 };
 
-                onMounted(() => {
-                    fetchBootstrap();
+                onMounted(async () => {
+                    await fetchDefaultPeriod();
+                    await fetchBootstrap();
                     fetchGoal();
                 });
 
@@ -1227,6 +1385,10 @@ const InitiativeList = {
                       departments,
                       names,
                       categories,
+                      aboutText,
+                      categoryGoals,
+                      defaultStart,
+                      defaultEnd,
                       filterStart,
                       filterEnd,
                       fetchInitiatives,
@@ -1246,6 +1408,9 @@ const InitiativeList = {
                       deleteName,
                       updateCategory,
                       deleteCategory,
+                      updateAbout,
+                      updateDefaultPeriod,
+                      updateCategoryGoals,
                       formatCurrency,
                       getCategoryClass,
                       isLoading,
