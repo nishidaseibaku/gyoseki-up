@@ -97,6 +97,9 @@
                         <router-link to="/list" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                     </li>
                     <li class="nav-item">
+                        <router-link to="/about" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-info-circle me-2"></i>業績アップ活動とは</router-link>
+                    </li>
+                    <li class="nav-item">
                         <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
                     </li>
                 </ul>
@@ -310,6 +313,7 @@
                                 <th @click="sortBy('category')" class="th-sortable">分類 <i :class="sortIcon('category')"></i></th>
                                 <th>内容</th>
                                 <th @click="sortBy('amount')" class="th-sortable text-end">金額(円) <i :class="sortIcon('amount')"></i></th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -321,9 +325,12 @@
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
                                 <td>{{ item.content }}</td>
                                 <td class="text-end">{{ formatCurrency(item.amount) }}</td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-outline-secondary" @click.stop="copy(item.id)">複写</button>
+                                </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
-                                <td colspan="7" class="text-center">該当するデータがありません。</td>
+                                <td colspan="8" class="text-center">該当するデータがありません。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -423,6 +430,16 @@
                     </div>
                 </div>
             </div>
+            </div>
+        </div>
+    </script>
+
+    <script type="text/x-template" id="about-template">
+        <div class="card">
+            <div class="card-header">業績アップ活動とは</div>
+            <div class="card-body">
+                <p>業績アップ活動とは、売上の向上やコスト削減など会社の収益性を高めるための取り組みの総称です。</p>
+                <p>本システムでは、各部署・個人のアイデアを記録し共有することで、継続的な改善を促し、組織全体の成長を支援します。</p>
             </div>
         </div>
     </script>
@@ -560,7 +577,13 @@ const InitiativeForm = {
                 const isEdit = computed(() => !!route.params.id);
 
                 onMounted(() => {
-                    if (isEdit.value) {
+                    if (route.query.copy) {
+                        const existing = root.initiatives.value.find(i => i.id === parseInt(route.query.copy));
+                        if (existing) {
+                            const { id, ...rest } = existing;
+                            newInitiative.value = { ...rest };
+                        }
+                    } else if (isEdit.value) {
                         const existing = root.initiatives.value.find(i => i.id === parseInt(route.params.id));
                         if (existing) {
                             newInitiative.value = { ...existing };
@@ -649,6 +672,10 @@ const InitiativeList = {
                     router.push(`/form/${id}`);
                 };
 
+                const copy = (id) => {
+                    router.push({ path: '/form', query: { copy: id } });
+                };
+
                 return {
                     root,
                     filters,
@@ -657,6 +684,7 @@ const InitiativeList = {
                     sortedInitiatives,
                     resetFilters,
                     edit,
+                    copy,
                     getCategoryClass: root.getCategoryClass,
                     formatCurrency: root.formatCurrency
                 };
@@ -778,11 +806,16 @@ const InitiativeList = {
             }
         };
 
+        const About = {
+            template: '#about-template'
+        };
+
         // --- Router ---
         const routes = [
             { path: '/', component: Dashboard },
             { path: '/form/:id?', component: InitiativeForm },
             { path: '/list', component: InitiativeList },
+            { path: '/about', component: About },
             { path: '/settings', component: Settings },
         ];
         const router = createRouter({
