@@ -52,6 +52,14 @@ def init_db():
         )
         """
     )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        """
+    )
     conn.commit()
 
     # 既存テーブルに title 列がない場合は追加
@@ -129,6 +137,13 @@ def init_db():
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             samples,
+        )
+        conn.commit()
+
+    c.execute("SELECT COUNT(*) FROM settings WHERE key = 'goal_amount'")
+    if c.fetchone()[0] == 0:
+        c.execute(
+            "INSERT INTO settings (key, value) VALUES ('goal_amount', '0')"
         )
         conn.commit()
     conn.close()
@@ -384,6 +399,31 @@ def manage_categories():
 @app.route("/api/categories/<int:item_id>", methods=["PUT", "DELETE"])
 def manage_category_item(item_id):
     return handle_simple_table_item("categories", item_id)
+
+
+@app.route("/api/goal", methods=["GET", "PUT"])
+def manage_goal():
+    conn = get_db()
+    c = conn.cursor()
+    if request.method == "GET":
+        c.execute("SELECT value FROM settings WHERE key = 'goal_amount'")
+        row = c.fetchone()
+        goal = int(row["value"]) if row else 0
+        return jsonify({"goal": goal})
+    else:
+        data = request.json or {}
+        if "goal" not in data:
+            return jsonify({"error": "Missing goal"}), 400
+        goal = int(data["goal"])
+        c.execute(
+            """
+            INSERT INTO settings (key, value) VALUES ('goal_amount', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (goal,),
+        )
+        conn.commit()
+        return jsonify({"goal": goal})
 
 
 if __name__ == "__main__":

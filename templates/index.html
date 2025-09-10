@@ -168,6 +168,14 @@
                         <div class="card-header bg-success text-white">合計貢献金額</div>
                         <div class="card-body kpi-card">
                             ¥{{ formatCurrency(totalAmount) }}
+                            <div v-if="root.goalAmount.value > 0" class="mt-3 w-100">
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" :style="{ width: Math.min(progressPercent, 100) + '%' }" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
+                                        {{ Math.min(progressPercent, 100).toFixed(1) }}%
+                                    </div>
+                                </div>
+                                <small class="text-muted">目標: ¥{{ formatCurrency(root.goalAmount.value) }}</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -347,6 +355,13 @@
     <script type="text/x-template" id="settings-template">
         <div>
             <h3 class="mb-3">設定</h3>
+            <div class="mb-4">
+                <label for="goalAmount" class="form-label">目標金額 (円)</label>
+                <div class="input-group">
+                    <clearable-input type="number" id="goalAmount" class="form-control" v-model="goalInput"></clearable-input>
+                    <button class="btn btn-primary" @click="saveGoal" :disabled="root.isLoading.value">保存</button>
+                </div>
+            </div>
             <div class="accordion" id="settingsAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingDepartment">
@@ -474,13 +489,21 @@
                     return summary;
                 });
 
-                const departmentSummary = computed(() => {
+                const departmentCategorySummary = computed(() => {
                     const summary = {};
                     root.initiatives.value.forEach(item => {
-                        if (!summary[item.department]) summary[item.department] = 0;
-                        summary[item.department] += item.amount;
+                        if (!summary[item.department]) summary[item.department] = {};
+                        if (!summary[item.department][item.category]) summary[item.department][item.category] = 0;
+                        summary[item.department][item.category] += item.amount;
                     });
                     return summary;
+                });
+
+                const progressPercent = computed(() => {
+                    if (root.goalAmount.value > 0) {
+                        return (totalAmount.value / root.goalAmount.value) * 100;
+                    }
+                    return 0;
                 });
 
                 const renderCharts = () => {
@@ -507,24 +530,28 @@
                     }
 
                     if (departmentChart.value) {
-                        const labels = Object.keys(departmentSummary.value);
-                        const data = Object.values(departmentSummary.value);
+                        const labels = Object.keys(departmentCategorySummary.value);
+                        const categories = root.categories.value.map(c => c.name);
+                        const colors = ['#ffc107', '#dc3545', '#28a745', '#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
+                        const datasets = categories.map((cat, idx) => ({
+                            label: cat,
+                            data: labels.map(dept => (departmentCategorySummary.value[dept][cat] || 0)),
+                            backgroundColor: colors[idx % colors.length]
+                        }));
                         if (!departmentChartInstance) {
                             departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
                                 type: 'bar',
-                                data: {
-                                    labels,
-                                    datasets: [{
-                                        label: '部門別貢献金額',
-                                        data,
-                                        backgroundColor: ['#0d6efd', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0']
-                                    }]
-                                },
-                                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                                data: { labels, datasets },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: { x: { stacked: true }, y: { stacked: true } },
+                                    plugins: { legend: { position: 'top' } }
+                                }
                             });
                         } else {
                             departmentChartInstance.data.labels = labels;
-                            departmentChartInstance.data.datasets[0].data = data;
+                            departmentChartInstance.data.datasets = datasets;
                             departmentChartInstance.update();
                         }
                     }
@@ -537,7 +564,7 @@
                     if (departmentChartInstance) departmentChartInstance.destroy();
                 });
 
-                return { root, totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart, categorySummary };
+                return { root, totalAmount, progressPercent, formatCurrency: root.formatCurrency, categoryChart, departmentChart, categorySummary };
             }
         };
 
@@ -729,6 +756,8 @@ const InitiativeList = {
                   const newDepartment = ref('');
                   const newName = ref('');
                   const newCategory = ref('');
+                  const goalInput = ref(root.goalAmount.value);
+                  watch(root.goalAmount, v => (goalInput.value = v));
 
                   const editingDeptId = ref(null);
                   const editingDeptName = ref('');
@@ -807,11 +836,16 @@ const InitiativeList = {
                       await root.deleteCategory(id);
                   };
 
+                  const saveGoal = async () => {
+                      await root.updateGoal(goalInput.value || 0);
+                  };
+
                   return {
                       root,
                       newDepartment,
                       newName,
                       newCategory,
+                      goalInput,
                       editingDeptId,
                       editingDeptName,
                       editingNameId,
@@ -832,7 +866,8 @@ const InitiativeList = {
                       startCategoryEdit,
                       cancelCategoryEdit,
                       saveCategory,
-                      removeCategory
+                      removeCategory,
+                      saveGoal
                   };
             }
         };
@@ -862,6 +897,7 @@ const InitiativeList = {
                 const departments = ref([]);
                 const names = ref([]);
                 const categories = ref([]);
+                const goalAmount = ref(0);
                 const filterStart = ref('');
                 const filterEnd = ref('');
 
@@ -941,6 +977,36 @@ const InitiativeList = {
                             categories.value = await response.json();
                         } catch (error) {
                             console.error('Error fetching categories:', error);
+                        }
+                    });
+                };
+
+                const fetchGoal = async () => {
+                    await withLoading(async () => {
+                        try {
+                            const response = await fetch('/api/goal');
+                            const data = await response.json();
+                            goalAmount.value = data.goal;
+                        } catch (error) {
+                            console.error('Error fetching goal:', error);
+                        }
+                    });
+                };
+
+                const updateGoal = async (goal) => {
+                    await withLoading(async () => {
+                        try {
+                            const response = await fetch('/api/goal', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ goal })
+                            });
+                            if (response.ok) {
+                                const data = await response.json();
+                                goalAmount.value = data.goal;
+                            }
+                        } catch (error) {
+                            console.error('Error updating goal:', error);
                         }
                     });
                 };
@@ -1152,6 +1218,7 @@ const InitiativeList = {
 
                 onMounted(() => {
                     fetchBootstrap();
+                    fetchGoal();
                 });
 
                 // Provide shared state and methods to all components
@@ -1172,6 +1239,7 @@ const InitiativeList = {
                       addDepartment,
                       addName,
                       addCategory,
+                      updateGoal,
                       updateDepartment,
                       deleteDepartment,
                       updateName,
@@ -1180,7 +1248,8 @@ const InitiativeList = {
                       deleteCategory,
                       formatCurrency,
                       getCategoryClass,
-                      isLoading
+                      isLoading,
+                      goalAmount
                   });
 
                   return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives };
