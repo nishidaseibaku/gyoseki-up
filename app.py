@@ -180,6 +180,39 @@ def get_initiatives():
     return jsonify(initiatives)
 
 
+# API: 初期表示用データを一括取得
+@app.route("/api/bootstrap", methods=["GET"])
+def bootstrap_data():
+    conn = get_db()
+    start = request.args.get("start")
+    end = request.args.get("end")
+
+    query = "SELECT * FROM initiatives"
+    params = []
+    if start and end:
+        query += " WHERE date BETWEEN ? AND ?"
+        params.extend([start, end])
+    elif start:
+        query += " WHERE date >= ?"
+        params.append(start)
+    elif end:
+        query += " WHERE date <= ?"
+        params.append(end)
+
+    initiatives = [dict(row) for row in conn.execute(query, params)]
+    departments = [dict(row) for row in conn.execute("SELECT * FROM departments ORDER BY name")]
+    names = [dict(row) for row in conn.execute("SELECT * FROM names ORDER BY name")]
+    categories = [dict(row) for row in conn.execute("SELECT * FROM categories ORDER BY name")]
+    return jsonify(
+        {
+            "initiatives": initiatives,
+            "departments": departments,
+            "names": names,
+            "categories": categories,
+        }
+    )
+
+
 # API: 新しい取り組み実績を追加
 @app.route("/api/initiatives", methods=["POST"])
 def add_initiative():
