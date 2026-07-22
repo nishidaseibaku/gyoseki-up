@@ -74,65 +74,93 @@
             justify-content: center;
             z-index: 2000;
         }
+        .login-wrap {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            max-width: 420px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
-    {% raw %}
     <div id="app">
-        <!-- Offcanvas Navigation -->
-        <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNav" aria-labelledby="offcanvasNavLabel">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasNavLabel">メニュー</h5>
-                <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        <template v-if="user">
+            <!-- Offcanvas Navigation -->
+            <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNav" aria-labelledby="offcanvasNavLabel">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="offcanvasNavLabel">メニュー</h5>
+                    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <router-link to="/" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
+                        </li>
+                        <li class="nav-item">
+                            <router-link to="/form" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
+                        </li>
+                        <li class="nav-item">
+                            <router-link to="/list" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
+                        </li>
+                        <li class="nav-item">
+                            <router-link to="/about" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-info-circle me-2"></i>業績アップ活動とは</router-link>
+                        </li>
+                        <li class="nav-item">
+                            <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
+                        </li>
+                    </ul>
+                </div>
             </div>
-            <div class="offcanvas-body">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <router-link to="/" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/form" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/list" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/about" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-info-circle me-2"></i>業績アップ活動とは</router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
-                    </li>
-                </ul>
+
+            <!-- Header -->
+            <nav class="navbar navbar-light bg-white shadow-sm sticky-top">
+                <div class="container-fluid">
+                    <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav" aria-controls="offcanvasNav">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <a class="navbar-brand mx-auto" href="#">
+                        業績アップ取り組みダッシュボード
+                    </a>
+                    <button class="btn btn-light" type="button" @click="logout" :title="(user.email || '') + ' からログアウト'">
+                        <i class="bi bi-box-arrow-right"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="container-fluid p-4">
+                <router-view v-slot="{ Component }">
+                    <transition name="fade" mode="out-in">
+                        <component :is="Component" />
+                    </transition>
+                </router-view>
+            </main>
+        </template>
+
+        <!-- Login Screen -->
+        <div v-else-if="authReady" class="login-wrap">
+            <div class="card login-card">
+                <div class="card-body text-center p-4">
+                    <h5 class="mb-1">業績アップ取り組みダッシュボード</h5>
+                    <p class="text-muted mb-4">社内アカウントでログインしてください</p>
+                    <button class="btn btn-primary w-100" @click="login" :disabled="isLoading">
+                        <i class="bi bi-microsoft me-2"></i>Microsoft アカウントでログイン
+                    </button>
+                    <div v-if="authError" class="alert alert-danger mt-3 mb-0 text-start" style="font-size: .85rem;">{{ authError }}</div>
+                </div>
             </div>
         </div>
 
-        <!-- Header -->
-        <nav class="navbar navbar-light bg-white shadow-sm sticky-top">
-            <div class="container-fluid">
-                <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav" aria-controls="offcanvasNav">
-                    <i class="bi bi-list"></i>
-                </button>
-                <a class="navbar-brand mx-auto" href="#">
-                    業績アップ取り組みダッシュボード
-                </a>
-                <div style="width: 40px;"></div> <!-- Spacer -->
+        <div v-if="!authReady || isLoading" class="loading-overlay" aria-live="polite" aria-busy="true">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status" aria-label="読み込み中"></div>
             </div>
-        </nav>
-
-        <!-- Main Content -->
-          <main class="container-fluid p-4">
-              <router-view v-slot="{ Component }">
-                  <transition name="fade" mode="out-in">
-                      <component :is="Component" />
-                  </transition>
-              </router-view>
-          </main>
-          <div v-if="isLoading" class="loading-overlay" aria-live="polite" aria-busy="true">
-              <div class="text-center">
-                  <div class="spinner-border text-primary" role="status" aria-label="読み込み中"></div>
-              </div>
-          </div>
-      </div>
+        </div>
+    </div>
 
     <!-- Vue.js, Vue Router, Chart.js, Bootstrap JS from CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -180,12 +208,12 @@
                     <div class="card text-center">
                         <div class="card-header bg-info text-white">総件数</div>
                         <div class="card-body kpi-card">
-                            {{ $root.initiatives.length }} 件
+                            {{ root.initiatives.value.length }} 件
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Charts -->
             <div class="row">
                 <div class="col-lg-6 mb-4">
@@ -301,9 +329,7 @@
                         <label for="filterCategory" class="form-label">分類</label>
                         <select id="filterCategory" class="form-select" v-model="filters.category">
                             <option value="">すべて</option>
-                            <option>粗利率改善</option>
-                            <option>固定費コントロール</option>
-                            <option>粗利額アップ</option>
+                            <option v-for="c in root.categories.value" :key="c.id" :value="c.name">{{ c.name }}</option>
                         </select>
                     </div>
                 </div>
@@ -350,6 +376,20 @@
     <script type="text/x-template" id="settings-template">
         <div>
             <h3 class="mb-3">設定</h3>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">マスタ配信システム連携</h5>
+                    <p class="text-muted mb-2" style="font-size: .9rem;">社内のマスタ配信システムから社員マスタ・部門マスタを取得し、氏名・部門の一覧を置き換えます。</p>
+                    <button class="btn btn-primary" @click="syncMasters" :disabled="root.isLoading.value || syncing">
+                        <span v-if="syncing" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        {{ syncing ? '同期中...' : 'マスタを同期' }}
+                    </button>
+                    <div v-if="syncResult" class="alert mt-3 mb-0" :class="syncResult.ok ? 'alert-success' : 'alert-danger'" style="font-size: .9rem;">
+                        <span v-if="syncResult.ok">同期しました（氏名 {{ syncResult.names }} 件 / 部門 {{ syncResult.departments }} 件）。</span>
+                        <span v-else>同期に失敗しました: {{ syncResult.message }}</span>
+                    </div>
+                </div>
+            </div>
             <div class="mb-4">
                 <label for="aboutText" class="form-label">業績アップ活動の説明</label>
                 <textarea id="aboutText" class="form-control mb-2" rows="3" v-model="aboutInput"></textarea>
@@ -380,24 +420,11 @@
                 </h2>
                 <div id="collapseDepartment" class="accordion-collapse collapse" aria-labelledby="headingDepartment" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
-                        <ul class="list-group mb-2">
-                            <li class="list-group-item d-flex align-items-center" v-for="d in root.departments.value" :key="d.id">
-                                <template v-if="editingDeptId === d.id">
-                                    <clearable-input type="text" class="form-control me-2" v-model="editingDeptName"></clearable-input>
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveDepartment(d.id)" :disabled="root.isLoading.value">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelDepartmentEdit" :disabled="root.isLoading.value">キャンセル</button>
-                                </template>
-                                <template v-else>
-                                    <span class="me-auto">{{ d.name || d }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startDepartmentEdit(d)" :disabled="root.isLoading.value">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeDepartment(d.id)" :disabled="root.isLoading.value">削除</button>
-                                </template>
-                            </li>
+                        <p class="text-muted mb-2" style="font-size: .85rem;"><i class="bi bi-lock me-1"></i>部門はマスタ配信システムから同期されます。ここでは編集できません。</p>
+                        <ul class="list-group mb-0">
+                            <li class="list-group-item" v-for="d in root.departments.value" :key="d.id">{{ d.name || d }}</li>
+                            <li class="list-group-item text-muted" v-if="root.departments.value.length === 0">未同期です。上部の「マスタを同期」から取り込んでください。</li>
                         </ul>
-                        <form class="d-flex" @submit.prevent="addDepartment">
-                            <clearable-input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加..."></clearable-input>
-                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
-                        </form>
                     </div>
                 </div>
             </div>
@@ -409,28 +436,11 @@
                 </h2>
                 <div id="collapseName" class="accordion-collapse collapse" aria-labelledby="headingName" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
-                        <ul class="list-group mb-2">
-                            <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
-                                <template v-if="editingNameId === n.id">
-                                    <clearable-input type="text" class="form-control me-2" v-model="editingNameName"></clearable-input>
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading.value">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading.value">キャンセル</button>
-                                </template>
-                                <template v-else>
-                                    <span class="me-auto">{{ n.name || n }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading.value">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
-                                </template>
-                            </li>
+                        <p class="text-muted mb-2" style="font-size: .85rem;"><i class="bi bi-lock me-1"></i>氏名はマスタ配信システムから同期されます。ここでは編集できません。</p>
+                        <ul class="list-group mb-0">
+                            <li class="list-group-item" v-for="n in root.names.value" :key="n.id">{{ n.name || n }}</li>
+                            <li class="list-group-item text-muted" v-if="root.names.value.length === 0">未同期です。上部の「マスタを同期」から取り込んでください。</li>
                         </ul>
-                        <form class="d-flex" @submit.prevent="addName">
-                            <clearable-input type="text" class="form-control me-2" v-model="newName" placeholder="追加..."></clearable-input>
-                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
-                        </form>
-                        <form class="d-flex mt-2" @submit.prevent="importNamesCsv">
-                            <input type="file" accept=".csv" class="form-control me-2" ref="namesFile">
-                            <button class="btn btn-secondary" :disabled="root.isLoading.value">CSVインポート</button>
-                        </form>
                     </div>
                 </div>
             </div>
@@ -476,7 +486,44 @@
         </div>
     </script>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import {
+            getAuth, OAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut, connectAuthEmulator
+        } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import {
+            getFirestore, collection, doc, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
+            query, where, writeBatch, serverTimestamp, connectFirestoreEmulator, onSnapshot
+        } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCbK53tWY8bduM9V6lDrCeHiXMrq0ncufo",
+            authDomain: "gyoseki-dashboard-westa.firebaseapp.com",
+            projectId: "gyoseki-dashboard-westa",
+            storageBucket: "gyoseki-dashboard-westa.firebasestorage.app",
+            messagingSenderId: "601752128597",
+            appId: "1:601752128597:web:701d18c3db12cf417858dc"
+        };
+        // Microsoft Entra ID (Azure AD) のテナントID。
+        // シングルテナント登録のアプリでは /common が使えないため、テナント固有エンドポイントを
+        // 使うようここで指定する（自組織 westa.co.jp のアカウントに限定される）。
+        const MS_TENANT = '208aac18-8247-4354-a8bf-617d2198ba7c';
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+
+        // ローカル開発時は Firebase Emulator に接続。
+        // ただし ?prod を付けると localhost でも本番の Auth/Firestore に接続する
+        // (Azure/Microsoft 連携はエミュレータでは検証できないため)。
+        const urlParams = new URLSearchParams(location.search);
+        const isLocalhost = ['localhost', '127.0.0.1'].includes(location.hostname);
+        const useEmulators = isLocalhost && !urlParams.has('prod');
+        if (useEmulators) {
+            connectAuthEmulator(auth, `http://${location.hostname}:9099`, { disableWarnings: true });
+            connectFirestoreEmulator(db, location.hostname, 8080);
+        }
+
         if (window.ChartDataLabels) {
             Chart.register(ChartDataLabels);
         } else {
@@ -485,6 +532,11 @@
         const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount, toRefs } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
         const colorPalette = ['#0d6efd', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
+
+        const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'ja');
+        const SETTINGS_REF = () => doc(db, 'settings', 'app');
+        const DEFAULT_ABOUT = '業績アップ活動とは、売上の向上やコスト削減など会社の収益性を高めるための取り組みの総称です。';
+        const DEFAULT_CATEGORIES = ['粗利率改善', '固定費コントロール', '粗利額アップ'];
 
         // --- Components ---
         const Dashboard = {
@@ -601,7 +653,7 @@
             }
         };
 
-const InitiativeForm = {
+        const InitiativeForm = {
             template: '#initiative-form-template',
             setup() {
                 const root = inject('root');
@@ -643,13 +695,13 @@ const InitiativeForm = {
 
                 onMounted(() => {
                     if (route.query.copy) {
-                        const existing = root.initiatives.value.find(i => i.id === parseInt(route.query.copy));
+                        const existing = root.initiatives.value.find(i => i.id === route.query.copy);
                         if (existing) {
                             const { id, ...rest } = existing;
                             newInitiative.value = { ...rest };
                         }
                     } else if (isEdit.value) {
-                        const existing = root.initiatives.value.find(i => i.id === parseInt(route.params.id));
+                        const existing = root.initiatives.value.find(i => i.id === route.params.id);
                         if (existing) {
                             newInitiative.value = { ...existing };
                         }
@@ -659,7 +711,7 @@ const InitiativeForm = {
                 const submit = async () => {
                     handleAmountInput();
                     if (isEdit.value) {
-                        await root.updateInitiative(parseInt(route.params.id), newInitiative.value);
+                        await root.updateInitiative(route.params.id, newInitiative.value);
                     } else {
                         await root.submitInitiative(newInitiative.value);
                     }
@@ -669,7 +721,7 @@ const InitiativeForm = {
                 const remove = async () => {
                     if (!isEdit.value) return;
                     if (!confirm('本当に削除しますか？')) return;
-                    await root.deleteInitiative(parseInt(route.params.id));
+                    await root.deleteInitiative(route.params.id);
                     await router.push('/list');
                 };
 
@@ -677,7 +729,7 @@ const InitiativeForm = {
             }
         };
 
-const InitiativeList = {
+        const InitiativeList = {
             template: '#initiative-list-template',
             setup() {
                 const root = inject('root');
@@ -726,7 +778,7 @@ const InitiativeList = {
                     if (sortByColumn.value !== column) return 'bi bi-arrow-down-up';
                     return sortDirection.value === 'asc' ? 'bi bi-sort-up' : 'bi bi-sort-down';
                 };
-                
+
                 const resetFilters = () => {
                     filters.value = { name: '', department: '', category: '' };
                 };
@@ -753,7 +805,7 @@ const InitiativeList = {
                     const csvContent = [headers, ...rows]
                         .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
                         .join('\r\n');
-                    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
@@ -858,6 +910,19 @@ const InitiativeList = {
                       namesFile.value.value = '';
                   };
 
+                  const syncing = ref(false);
+                  const syncResult = ref(null);
+                  const syncMasters = async () => {
+                      if (!confirm('マスタ配信システムから取得した内容で、現在の氏名・部門の一覧を置き換えます。よろしいですか？')) return;
+                      syncing.value = true;
+                      syncResult.value = null;
+                      try {
+                          syncResult.value = await root.syncMasters();
+                      } finally {
+                          syncing.value = false;
+                      }
+                  };
+
                   const addCategory = async () => {
                       if (!newCategory.value) return;
                       await root.addCategory(newCategory.value);
@@ -925,7 +990,10 @@ const InitiativeList = {
                       removeCategory,
                       saveAbout,
                       saveDefaultPeriod,
-                      saveCategoryGoals
+                      saveCategoryGoals,
+                      syncing,
+                      syncResult,
+                      syncMasters
                   };
             }
         };
@@ -955,6 +1023,10 @@ const InitiativeList = {
         // --- Main App ---
         const app = createApp({
             setup() {
+                const user = ref(null);
+                const authReady = ref(false);
+                const authError = ref('');
+
                 const initiatives = ref([]);
                 const departments = ref([]);
                 const names = ref([]);
@@ -989,26 +1061,67 @@ const InitiativeList = {
                     }
                 };
 
+                // --- Firestore helpers ---
+                const colRef = (name) => collection(db, name);
+
+                const loadCollection = async (name) => {
+                    const snap = await getDocs(colRef(name));
+                    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byName);
+                };
+
+                const queryInitiatives = async (start, end) => {
+                    const clauses = [];
+                    if (start) clauses.push(where('date', '>=', start));
+                    if (end) clauses.push(where('date', '<=', end));
+                    const q = clauses.length ? query(colRef('initiatives'), ...clauses) : colRef('initiatives');
+                    const snap = await getDocs(q);
+                    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                };
+
+                // 初回アクセス時に分類マスタと設定ドキュメントを初期化
+                const seedIfEmpty = async () => {
+                    const settingsSnap = await getDoc(SETTINGS_REF());
+                    if (!settingsSnap.exists()) {
+                        await setDoc(SETTINGS_REF(), {
+                            about_text: DEFAULT_ABOUT,
+                            default_start: '',
+                            default_end: '',
+                            category_goals: {}
+                        });
+                    }
+                    const catSnap = await getDocs(colRef('categories'));
+                    if (catSnap.empty) {
+                        const batch = writeBatch(db);
+                        DEFAULT_CATEGORIES.forEach(name => {
+                            batch.set(doc(colRef('categories')), { name });
+                        });
+                        await batch.commit();
+                    }
+                };
+
                 const fetchBootstrap = async () => {
                     await withLoading(async () => {
                         try {
-                            let url = '/api/bootstrap';
-                            const params = [];
-                            if (filterStart.value) params.push(`start=${filterStart.value}`);
-                            if (filterEnd.value) params.push(`end=${filterEnd.value}`);
-                            if (params.length) url += `?${params.join('&')}`;
-                            const response = await fetch(url);
-                            const data = await response.json();
-                            initiatives.value = data.initiatives;
-                            departments.value = data.departments;
-                            names.value = data.names;
-                            categories.value = data.categories;
-                            aboutText.value = data.about_text || '';
-                            categoryGoals.value = data.category_goals || {};
-                            defaultStart.value = data.default_start || '';
-                            defaultEnd.value = data.default_end || '';
+                            await seedIfEmpty();
+                            const settingsSnap = await getDoc(SETTINGS_REF());
+                            const s = settingsSnap.exists() ? settingsSnap.data() : {};
+                            aboutText.value = s.about_text || '';
+                            categoryGoals.value = s.category_goals || {};
+                            defaultStart.value = s.default_start || '';
+                            defaultEnd.value = s.default_end || '';
                             if (!filterStart.value) filterStart.value = defaultStart.value;
                             if (!filterEnd.value) filterEnd.value = defaultEnd.value;
+
+                            const [inits, deps, nms, cats] = await Promise.all([
+                                queryInitiatives(filterStart.value, filterEnd.value),
+                                loadCollection('departments'),
+                                loadCollection('names'),
+                                loadCollection('categories'),
+                            ]);
+                            initiatives.value = inits;
+                            departments.value = deps;
+                            names.value = nms;
+                            categories.value = cats;
                         } catch (error) {
                             console.error('Error fetching bootstrap data:', error);
                         }
@@ -1018,13 +1131,7 @@ const InitiativeList = {
                 const fetchInitiatives = async () => {
                     await withLoading(async () => {
                         try {
-                            let url = '/api/initiatives';
-                            const params = [];
-                            if (filterStart.value) params.push(`start=${filterStart.value}`);
-                            if (filterEnd.value) params.push(`end=${filterEnd.value}`);
-                            if (params.length) url += `?${params.join('&')}`;
-                            const response = await fetch(url);
-                            initiatives.value = await response.json();
+                            initiatives.value = await queryInitiatives(filterStart.value, filterEnd.value);
                         } catch (error) {
                             console.error('Error fetching initiatives:', error);
                         }
@@ -1034,8 +1141,7 @@ const InitiativeList = {
                 const fetchDepartments = async () => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/departments');
-                            departments.value = await response.json();
+                            departments.value = await loadCollection('departments');
                         } catch (error) {
                             console.error('Error fetching departments:', error);
                         }
@@ -1045,8 +1151,7 @@ const InitiativeList = {
                 const fetchNames = async () => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/names');
-                            names.value = await response.json();
+                            names.value = await loadCollection('names');
                         } catch (error) {
                             console.error('Error fetching names:', error);
                         }
@@ -1056,8 +1161,7 @@ const InitiativeList = {
                 const fetchCategories = async () => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/categories');
-                            categories.value = await response.json();
+                            categories.value = await loadCollection('categories');
                         } catch (error) {
                             console.error('Error fetching categories:', error);
                         }
@@ -1067,17 +1171,11 @@ const InitiativeList = {
                 const updateDefaultPeriod = async (start, end) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/default-period', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ start, end })
-                            });
-                            if (response.ok) {
-                                defaultStart.value = start;
-                                defaultEnd.value = end;
-                                filterStart.value = start;
-                                filterEnd.value = end;
-                            }
+                            await setDoc(SETTINGS_REF(), { default_start: start || '', default_end: end || '' }, { merge: true });
+                            defaultStart.value = start;
+                            defaultEnd.value = end;
+                            filterStart.value = start;
+                            filterEnd.value = end;
                         } catch (error) {
                             console.error('Error updating default period:', error);
                         }
@@ -1087,15 +1185,8 @@ const InitiativeList = {
                 const updateAbout = async (text) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/about', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ text })
-                            });
-                            if (response.ok) {
-                                const data = await response.json();
-                                aboutText.value = data.text;
-                            }
+                            await setDoc(SETTINGS_REF(), { about_text: text }, { merge: true });
+                            aboutText.value = text;
                         } catch (error) {
                             console.error('Error updating about text:', error);
                         }
@@ -1105,31 +1196,36 @@ const InitiativeList = {
                 const updateCategoryGoals = async (goals) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/category-goals', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(goals)
+                            const clean = {};
+                            Object.entries(goals || {}).forEach(([k, v]) => {
+                                clean[k] = Number(v) || 0;
                             });
-                            if (response.ok) {
-                                categoryGoals.value = goals;
-                            }
+                            await setDoc(SETTINGS_REF(), { category_goals: clean }, { merge: true });
+                            categoryGoals.value = clean;
                         } catch (error) {
                             console.error('Error updating category goals:', error);
                         }
                     });
                 };
 
+                const pickInitiative = (data) => ({
+                    department: data.department,
+                    name: data.name,
+                    title: data.title,
+                    date: data.date,
+                    category: data.category,
+                    content: data.content,
+                    amount: parseInt(data.amount, 10) || 0,
+                });
+
                 const submitInitiative = async (newInitiative) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/initiatives', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(newInitiative),
+                            await addDoc(colRef('initiatives'), {
+                                ...pickInitiative(newInitiative),
+                                createdAt: serverTimestamp(),
                             });
-                            if (response.ok) {
-                                await fetchInitiatives();
-                            }
+                            await fetchInitiatives();
                         } catch (error) {
                             console.error('Error submitting initiative:', error);
                         }
@@ -1139,14 +1235,8 @@ const InitiativeList = {
                 const updateInitiative = async (id, updated) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch(`/api/initiatives/${id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(updated),
-                            });
-                            if (response.ok) {
-                                await fetchInitiatives();
-                            }
+                            await updateDoc(doc(db, 'initiatives', id), pickInitiative(updated));
+                            await fetchInitiatives();
                         } catch (error) {
                             console.error('Error updating initiative:', error);
                         }
@@ -1156,172 +1246,135 @@ const InitiativeList = {
                 const deleteInitiative = async (id) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch(`/api/initiatives/${id}`, { method: 'DELETE' });
-                            if (response.ok) {
-                                await fetchInitiatives();
-                            }
+                            await deleteDoc(doc(db, 'initiatives', id));
+                            await fetchInitiatives();
                         } catch (error) {
                             console.error('Error deleting initiative:', error);
                         }
                     });
                 };
 
-                const addDepartment = async (name) => {
+                // --- マスタ (部門・氏名・分類) 共通処理 ---
+                const addMasterItem = async (colName, name, listRef, refetch) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/departments', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name }),
-                            });
-                            if (response.ok) {
-                                await fetchDepartments();
+                            if (listRef.value.some(item => item.name === name)) {
+                                alert('既に登録されています: ' + name);
+                                return;
                             }
+                            await addDoc(colRef(colName), { name });
+                            await refetch();
                         } catch (error) {
-                            console.error('Error adding department:', error);
+                            console.error(`Error adding to ${colName}:`, error);
                         }
                     });
                 };
 
-                const addName = async (name) => {
+                const updateMasterItem = async (colName, id, name, refetch) => {
                     await withLoading(async () => {
                         try {
-                            const response = await fetch('/api/names', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name }),
-                            });
-                            if (response.ok) {
-                                await fetchNames();
-                            }
+                            await updateDoc(doc(db, colName, id), { name });
+                            await refetch();
                         } catch (error) {
-                            console.error('Error adding name:', error);
+                            console.error(`Error updating ${colName}:`, error);
                         }
                     });
                 };
+
+                const deleteMasterItem = async (colName, id, refetch) => {
+                    await withLoading(async () => {
+                        try {
+                            await deleteDoc(doc(db, colName, id));
+                            await refetch();
+                        } catch (error) {
+                            console.error(`Error deleting from ${colName}:`, error);
+                        }
+                    });
+                };
+
+                const addDepartment = (name) => addMasterItem('departments', name, departments, fetchDepartments);
+                const updateDepartment = (id, name) => updateMasterItem('departments', id, name, fetchDepartments);
+                const deleteDepartment = (id) => deleteMasterItem('departments', id, fetchDepartments);
+
+                const addName = (name) => addMasterItem('names', name, names, fetchNames);
+                const updateName = (id, name) => updateMasterItem('names', id, name, fetchNames);
+                const deleteName = (id) => deleteMasterItem('names', id, fetchNames);
+
+                const addCategory = (name) => addMasterItem('categories', name, categories, fetchCategories);
+                const updateCategory = (id, name) => updateMasterItem('categories', id, name, fetchCategories);
+                const deleteCategory = (id) => deleteMasterItem('categories', id, fetchCategories);
 
                 const importNames = async (file) => {
                     await withLoading(async () => {
                         try {
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            const response = await fetch('/api/names/import', {
-                                method: 'POST',
-                                body: formData,
+                            const text = (await file.text()).replace(/^﻿/, '');
+                            const existing = new Set(names.value.map(n => n.name));
+                            const toAdd = [];
+                            text.split(/\r?\n/).forEach(line => {
+                                if (!line.trim()) return;
+                                let name = line.split(',')[0].trim();
+                                name = name.replace(/^"(.*)"$/, '$1').trim();
+                                if (name && !existing.has(name)) {
+                                    existing.add(name);
+                                    toAdd.push(name);
+                                }
                             });
-                            if (response.ok) {
-                                await fetchNames();
+                            // Firestore のバッチ書き込みは1回500件まで
+                            for (let i = 0; i < toAdd.length; i += 450) {
+                                const batch = writeBatch(db);
+                                toAdd.slice(i, i + 450).forEach(name => {
+                                    batch.set(doc(colRef('names')), { name });
+                                });
+                                await batch.commit();
                             }
+                            await fetchNames();
                         } catch (error) {
                             console.error('Error importing names:', error);
                         }
                     });
                 };
 
-                const addCategory = async (name) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch('/api/categories', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name }),
-                            });
-                            if (response.ok) {
-                                await fetchCategories();
+                // マスタ配信システムからの同期。
+                // APIキーはサーバー側でのみ扱うため、syncRequests にドキュメントを作成して
+                // サーバー側の Cloud Function を起動し、完了を購読して結果を受け取る。
+                const syncMasters = async () => {
+                    return await new Promise(async (resolve) => {
+                        await withLoading(async () => {
+                            try {
+                                const reqRef = await addDoc(colRef('syncRequests'), {
+                                    status: 'pending',
+                                    requestedBy: auth.currentUser ? auth.currentUser.email : '',
+                                    requestedAt: serverTimestamp(),
+                                });
+                                await new Promise((done) => {
+                                    const timer = setTimeout(() => {
+                                        unsub();
+                                        done({ ok: false, message: 'タイムアウトしました。しばらくして一覧をご確認ください。' });
+                                    }, 120000);
+                                    const unsub = onSnapshot(reqRef, (snap) => {
+                                        const d = snap.data();
+                                        if (!d) return;
+                                        if (d.status === 'done') {
+                                            clearTimeout(timer);
+                                            unsub();
+                                            done({ ok: true, names: d.names, departments: d.departments });
+                                        } else if (d.status === 'error') {
+                                            clearTimeout(timer);
+                                            unsub();
+                                            done({ ok: false, message: d.error || '同期に失敗しました。' });
+                                        }
+                                    });
+                                }).then(async (result) => {
+                                    if (result.ok) {
+                                        await Promise.all([fetchNames(), fetchDepartments()]);
+                                    }
+                                    resolve(result);
+                                });
+                            } catch (error) {
+                                console.error('Error syncing masters:', error);
+                                resolve({ ok: false, message: String(error && error.message || error) });
                             }
-                        } catch (error) {
-                            console.error('Error adding category:', error);
-                        }
-                    });
-                };
-
-                const updateDepartment = async (id, name) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch(`/api/departments/${id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name }),
-                            });
-                            if (response.ok) {
-                                await fetchDepartments();
-                            }
-                        } catch (error) {
-                            console.error('Error updating department:', error);
-                        }
-                    });
-                };
-
-                const deleteDepartment = async (id) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch(`/api/departments/${id}`, { method: 'DELETE' });
-                            if (response.ok) {
-                                await fetchDepartments();
-                            }
-                        } catch (error) {
-                            console.error('Error deleting department:', error);
-                        }
-                    });
-                };
-
-                const updateName = async (id, name) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch(`/api/names/${id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name }),
-                            });
-                            if (response.ok) {
-                                await fetchNames();
-                            }
-                        } catch (error) {
-                            console.error('Error updating name:', error);
-                        }
-                    });
-                };
-
-                const deleteName = async (id) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch(`/api/names/${id}`, { method: 'DELETE' });
-                            if (response.ok) {
-                                await fetchNames();
-                            }
-                        } catch (error) {
-                            console.error('Error deleting name:', error);
-                        }
-                    });
-                };
-
-                const updateCategory = async (id, name) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch(`/api/categories/${id}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ name }),
-                            });
-                            if (response.ok) {
-                                await fetchCategories();
-                            }
-                        } catch (error) {
-                            console.error('Error updating category:', error);
-                        }
-                    });
-                };
-
-                const deleteCategory = async (id) => {
-                    await withLoading(async () => {
-                        try {
-                            const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-                            if (response.ok) {
-                                await fetchCategories();
-                            }
-                        } catch (error) {
-                            console.error('Error deleting category:', error);
-                        }
+                        });
                     });
                 };
 
@@ -1338,13 +1391,48 @@ const InitiativeList = {
 
                 const hideOffcanvas = () => {
                     const el = document.getElementById('offcanvasNav');
+                    if (!el) return;
                     let instance = bootstrap.Offcanvas.getInstance(el);
                     if (!instance) instance = new bootstrap.Offcanvas(el);
                     instance.hide();
                 };
 
-                onMounted(async () => {
-                    await fetchBootstrap();
+                // --- Auth ---
+                const login = async () => {
+                    authError.value = '';
+                    try {
+                        const provider = new OAuthProvider('microsoft.com');
+                        provider.setCustomParameters(MS_TENANT ? { tenant: MS_TENANT, prompt: 'select_account' } : { prompt: 'select_account' });
+                        // エミュレータ、または ?redirect 指定時はリダイレクト方式を使う
+                        // (エミュレータやヘッドレス環境ではポップアップが opener を失う/ブロックされるため)
+                        if (useEmulators || urlParams.has('redirect')) {
+                            await signInWithRedirect(auth, provider);
+                        } else {
+                            await signInWithPopup(auth, provider);
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                            authError.value = 'ログインに失敗しました: ' + (error.message || error.code || error);
+                        }
+                    }
+                };
+
+                const logout = async () => {
+                    await signOut(auth);
+                };
+
+                onAuthStateChanged(auth, async (u) => {
+                    user.value = u;
+                    authReady.value = true;
+                    if (u) {
+                        await fetchBootstrap();
+                    } else {
+                        initiatives.value = [];
+                        departments.value = [];
+                        names.value = [];
+                        categories.value = [];
+                    }
                 });
 
                 // Provide shared state and methods to all components
@@ -1369,6 +1457,7 @@ const InitiativeList = {
                       addDepartment,
                       addName,
                       importNames,
+                      syncMasters,
                       addCategory,
                       updateDepartment,
                       deleteDepartment,
@@ -1386,7 +1475,7 @@ const InitiativeList = {
                       totalAmount
                   });
 
-                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives };
+                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, authReady, authError, login, logout };
             }
         });
 
@@ -1483,6 +1572,5 @@ const InitiativeList = {
         app.use(router);
         app.mount('#app');
     </script>
-    {% endraw %}
 </body>
 </html>

@@ -1,9 +1,0 @@
-@echo off
-REM Create virtual environment if it doesn't exist
-if not exist venv (
-    python -m venv venv
-)
-
-call venv\Scripts\activate.bat
-pip install -r requirements.txt
-python app.py
