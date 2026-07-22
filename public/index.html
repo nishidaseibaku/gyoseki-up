@@ -122,6 +122,9 @@
                     <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav" aria-controls="offcanvasNav">
                         <i class="bi bi-list"></i>
                     </button>
+                    <router-link v-if="$route.path.startsWith('/form')" to="/list" class="btn btn-outline-secondary btn-sm ms-2">
+                        <i class="bi bi-arrow-left me-1"></i>一覧に戻る
+                    </router-link>
                     <a class="navbar-brand mx-auto" href="#">
                         業績アップ取り組みダッシュボード
                     </a>
@@ -191,6 +194,13 @@
 
     <script type="text/x-template" id="dashboard-template">
         <div>
+            <!-- 新規登録ボタン -->
+            <div class="d-flex justify-content-end mb-3">
+                <router-link to="/form" class="btn btn-primary">
+                    <i class="bi bi-plus-lg me-1"></i>新規登録
+                </router-link>
+            </div>
+
             <!-- Date Filters -->
             <date-filter></date-filter>
 
@@ -254,9 +264,6 @@
     <script type="text/x-template" id="initiative-form-template">
         <div class="card">
             <div class="card-header d-flex align-items-center">
-                <router-link to="/list" class="btn btn-outline-secondary btn-sm me-2">
-                    <i class="bi bi-arrow-left"></i>
-                </router-link>
                 <span>{{ isEdit ? '取り組みを編集' : '新規取り組みを登録' }}</span>
             </div>
             <div class="card-body">
