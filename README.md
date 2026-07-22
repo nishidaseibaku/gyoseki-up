@@ -7,44 +7,65 @@
 - 全体の貢献金額や総件数の集計
 - 分類別・部門別の貢献金額のグラフ表示
 - 設定画面で氏名一覧をCSVからインポート
+- Microsoft 365 (Entra ID) アカウントによるログイン（社内限定アクセス）
 
 ## 使用技術
-- バックエンド: Flask (Python) / Gunicorn
-- フロントエンド: Vue.js, Bootstrap
-- データベース: SQLite
-- コンテナ: Docker (軽量な Python Alpine ベースイメージ)
+- ホスティング: Firebase Hosting
+- データベース: Cloud Firestore（ブラウザから直接アクセス、サーバーレス）
+- 認証: Firebase Authentication（Microsoft プロバイダ / OpenID Connect）
+- フロントエンド: Vue.js 3, Vue Router, Chart.js, Bootstrap 5, Tom Select（すべてCDN）
 
-## 実行方法
-
-### Docker での起動
-1. イメージをビルド
-   `docker build -t performance-dashboard .`
-2. コンテナを起動
-   `docker run -p 5000:5000 -v $(pwd)/data:/data performance-dashboard`
-
-   `/data` にマウントしたディレクトリに SQLite データベースが保存されます。  
-   初回起動時にデータが存在しない場合はサンプルデータが自動登録されます。
-3. ブラウザで `http://localhost:5000` にアクセス
-
-### Windows 上での起動
-1. 仮想環境を作成して依存パッケージをインストール
-   ```
-   python -m venv venv
-   venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-2. アプリケーションを起動
-   ```
-   start_windows.bat
-   ```
+Firebase プロジェクト: `gyoseki-dashboard-westa`（東京リージョン asia-northeast1）
 
 ## ディレクトリ構成
 ```
-├── Dockerfile
-├── README.md
-├── app.py
-├── requirements.txt
-└── templates/
-    └── index.html
+├── firebase.json            # Hosting / Firestore / Emulator 設定
+├── .firebaserc              # デフォルトプロジェクト
+├── firestore.rules          # セキュリティルール（ログイン必須）
+├── firestore.indexes.json
+├── public/
+│   └── index.html           # アプリ本体（SPA）
+└── tools/
+    └── migrate_sqlite_to_firestore.py  # 旧SQLiteデータの移行スクリプト
 ```
 
+## 開発
+
+ローカルでは Firebase Emulator Suite を使います（`localhost` でアクセスすると自動的にエミュレータへ接続します）。
+
+```
+npm install -g firebase-tools   # 未導入の場合
+firebase emulators:start
+```
+
+ブラウザで `http://localhost:5000` を開きます。ログインはエミュレータの擬似アカウントが使えます。
+
+## デプロイ
+
+```
+firebase deploy --only hosting,firestore
+```
+
+公開URL: https://gyoseki-dashboard-westa.web.app
+
+## 認証の設定（初回のみ）
+
+Microsoft ログインを有効にするには Azure ポータルでのアプリ登録が必要です。
+
+1. [Azure ポータル](https://portal.azure.com) → Microsoft Entra ID → アプリの登録 → 新規登録
+   - サポートされているアカウントの種類: **この組織ディレクトリのみのアカウント**（シングルテナント。これが社外アカウント排除の要）
+   - リダイレクトURI (Web): `https://gyoseki-dashboard-westa.firebaseapp.com/__/auth/handler`
+2. 「証明書とシークレット」でクライアントシークレットを作成し、値を控える
+3. [Firebase Console](https://console.firebase.google.com/project/gyoseki-dashboard-westa/authentication/providers) → Authentication → ログイン方法 → Microsoft を有効化
+   - Azure のアプリケーション (クライアント) ID とシークレットを貼り付ける
+4. `public/index.html` の `MS_TENANT` に Azure のディレクトリ (テナント) ID を設定するとログイン画面が自組織に固定される
+
+## 旧バージョンからのデータ移行
+
+旧 Flask + SQLite 版（git 履歴参照）のデータベースがある場合:
+
+```
+pip install google-cloud-firestore
+gcloud auth application-default login
+python tools/migrate_sqlite_to_firestore.py path/to/initiatives.db
+```

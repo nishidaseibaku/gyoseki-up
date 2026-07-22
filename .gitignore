@@ -1,3 +1,9 @@
 venv/
 __pycache__/
 *.pyc
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+data/
+node_modules/
