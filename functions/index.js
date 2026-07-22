@@ -58,7 +58,8 @@ async function fetchMasterItems(masterId, apiKey, idToken) {
 }
 
 /** コレクションを全削除してから name の配列で作り直す */
-async function replaceNameCollection(collectionName, names) {
+/** コレクションを全削除してから docs（プレーンオブジェクトの配列）で作り直す */
+async function replaceCollection(collectionName, docs) {
   const existing = await db.collection(collectionName).get();
   let batch = db.batch();
   let ops = 0;
@@ -74,8 +75,8 @@ async function replaceNameCollection(collectionName, names) {
     if (++ops >= 450) await flush();
   }
   await flush();
-  for (const name of names) {
-    batch.set(db.collection(collectionName).doc(), { name });
+  for (const data of docs) {
+    batch.set(db.collection(collectionName).doc(), data);
     if (++ops >= 450) await flush();
   }
   await flush();
@@ -101,32 +102,53 @@ exports.onMasterSyncRequested = onDocumentCreated(
         fetchMasterItems('departments', apiKey, idToken),
       ]);
 
-      const employeeNames = [
-        ...new Set(
-          employees
-            .filter((e) => e.visible !== false)
-            .filter((e) => (e.values?.status ?? 'active') === 'active')
-            .map((e) => (e.values?.displayName || '').trim())
-            .filter(Boolean)
-        ),
-      ].sort((a, b) => a.localeCompare(b, 'ja'));
+      // 部門コード -> 部門名 の対応表（社員の deptCode 解決に使う）
+      const deptCodeToName = {};
+      departments.forEach((d) => {
+        const v = d.values || {};
+        if (v.code) deptCodeToName[String(v.code)] = (v.name || '').trim();
+      });
 
-      const departmentNames = [
-        ...new Set(
-          departments
-            .filter((d) => d.visible !== false)
-            .map((d) => (d.values?.name || '').trim())
-            .filter(Boolean)
-        ),
-      ].sort((a, b) => a.localeCompare(b, 'ja'));
+      // 社員: 氏名・メール・UPN・部門名を保存（ログインユーザーの照合に使う）
+      const seenName = new Set();
+      const employeeDocs = [];
+      employees
+        .filter((e) => e.visible !== false)
+        .filter((e) => (e.values?.status ?? 'active') === 'active')
+        .forEach((e) => {
+          const v = e.values || {};
+          const name = (v.displayName || '').trim();
+          if (!name || seenName.has(name)) return;
+          seenName.add(name);
+          employeeDocs.push({
+            name,
+            email: (v.email || v.userPrincipalName || '').trim().toLowerCase(),
+            upn: (v.userPrincipalName || '').trim().toLowerCase(),
+            department: v.deptCode ? deptCodeToName[String(v.deptCode)] || '' : '',
+          });
+        });
+      employeeDocs.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
 
-      await replaceNameCollection('names', employeeNames);
-      await replaceNameCollection('departments', departmentNames);
+      const seenDept = new Set();
+      const departmentDocs = [];
+      departments
+        .filter((d) => d.visible !== false)
+        .forEach((d) => {
+          const name = (d.values?.name || '').trim();
+          if (name && !seenDept.has(name)) {
+            seenDept.add(name);
+            departmentDocs.push({ name });
+          }
+        });
+      departmentDocs.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+      await replaceCollection('names', employeeDocs);
+      await replaceCollection('departments', departmentDocs);
 
       await ref.update({
         status: 'done',
-        names: employeeNames.length,
-        departments: departmentNames.length,
+        names: employeeDocs.length,
+        departments: departmentDocs.length,
         finishedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } catch (err) {

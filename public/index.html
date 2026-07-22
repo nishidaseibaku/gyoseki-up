@@ -705,6 +705,14 @@
                         if (existing) {
                             newInitiative.value = { ...existing };
                         }
+                    } else {
+                        // 新規登録: ログインユーザーに一致する社員があれば氏名・部門を初期選択。
+                        // 一致しなければ未選択のまま。
+                        const me = root.myProfile.value;
+                        if (me) {
+                            newInitiative.value.name = me.name || '';
+                            if (me.department) newInitiative.value.department = me.department;
+                        }
                     }
                 });
 
@@ -1049,6 +1057,16 @@
                 const totalAmount = computed(() =>
                     initiatives.value.reduce((sum, item) => sum + item.amount, 0)
                 );
+
+                // ログイン中ユーザーのメールに一致する社員（新規登録の初期値に使う）
+                const myProfile = computed(() => {
+                    const email = (user.value && user.value.email || '').trim().toLowerCase();
+                    if (!email) return null;
+                    return names.value.find(n =>
+                        (n.email || '').toLowerCase() === email ||
+                        (n.upn || '').toLowerCase() === email
+                    ) || null;
+                });
 
                 const loadingCount = ref(0);
                 const isLoading = computed(() => loadingCount.value > 0);
@@ -1472,7 +1490,8 @@
                       getCategoryClass,
                       isLoading,
                       categoryColorMap,
-                      totalAmount
+                      totalAmount,
+                      myProfile
                   });
 
                   return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, authReady, authError, login, logout };
