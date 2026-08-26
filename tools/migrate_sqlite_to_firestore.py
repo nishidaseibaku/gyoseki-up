@@ -16,7 +16,7 @@ import sys
 
 from google.cloud import firestore
 
-PROJECT_ID = "gyoseki-dashboard-westa"
+PROJECT_ID = "gyoseki-up-98j3h4t"
 
 
 def main():

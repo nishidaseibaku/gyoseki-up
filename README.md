@@ -17,7 +17,7 @@
 
 外部システムとの連携は行わず、氏名・部門などのマスタデータもすべてこのアプリの中で管理する。
 
-Firebase プロジェクト: `gyoseki-dashboard-westa`（東京リージョン asia-northeast1）
+Firebase プロジェクト: `gyoseki-up-98j3h4t`（東京リージョン asia-northeast1）
 
 ## ディレクトリ構成
 ```
@@ -49,7 +49,7 @@ firebase emulators:start
 firebase deploy --only hosting,firestore
 ```
 
-公開URL: https://gyoseki-dashboard-westa.web.app
+公開URL: https://gyoseki-up-98j3h4t.web.app
 
 ## ログインアカウントの管理
 
@@ -67,15 +67,15 @@ pip install firebase-admin
 gcloud auth application-default login   # 一度だけ
 
 # アカウント作成
-python tools/manage_users.py --project gyoseki-dashboard-westa create <ユーザー名> <パスワード> <表示名> --department <部門名>
+python tools/manage_users.py --project gyoseki-up-98j3h4t create <ユーザー名> <パスワード> <表示名> --department <部門名>
 
 # パスワードリセット
-python tools/manage_users.py --project gyoseki-dashboard-westa reset-password <ユーザー名> <新パスワード>
+python tools/manage_users.py --project gyoseki-up-98j3h4t reset-password <ユーザー名> <新パスワード>
 
 # 無効化 / 再有効化 / 一覧
-python tools/manage_users.py --project gyoseki-dashboard-westa disable <ユーザー名>
-python tools/manage_users.py --project gyoseki-dashboard-westa enable <ユーザー名>
-python tools/manage_users.py --project gyoseki-dashboard-westa list
+python tools/manage_users.py --project gyoseki-up-98j3h4t disable <ユーザー名>
+python tools/manage_users.py --project gyoseki-up-98j3h4t enable <ユーザー名>
+python tools/manage_users.py --project gyoseki-up-98j3h4t list
 ```
 
 ローカルの Emulator に対して実行する場合は、`firebase emulators:start` を起動した状態で、
