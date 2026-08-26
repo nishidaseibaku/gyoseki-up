@@ -128,7 +128,7 @@
                     <a class="navbar-brand mx-auto" href="#">
                         業績アップ取り組みダッシュボード
                     </a>
-                    <button class="btn btn-light" type="button" @click="logout" :title="(user.email || '') + ' からログアウト'">
+                    <button class="btn btn-light" type="button" @click="logout" :title="(myProfile?.name || user.email || '') + ' からログアウト'">
                         <i class="bi bi-box-arrow-right"></i>
                     </button>
                 </div>
@@ -147,12 +147,20 @@
         <!-- Login Screen -->
         <div v-else-if="authReady" class="login-wrap">
             <div class="card login-card">
-                <div class="card-body text-center p-4">
-                    <h5 class="mb-1">業績アップ取り組みダッシュボード</h5>
-                    <p class="text-muted mb-4">社内アカウントでログインしてください</p>
-                    <button class="btn btn-primary w-100" @click="login" :disabled="isLoading">
-                        <i class="bi bi-microsoft me-2"></i>Microsoft アカウントでログイン
-                    </button>
+                <div class="card-body p-4">
+                    <h5 class="mb-1 text-center">業績アップ取り組みダッシュボード</h5>
+                    <p class="text-muted mb-4 text-center">ユーザー名とパスワードでログインしてください</p>
+                    <form @submit.prevent="login">
+                        <div class="mb-3">
+                            <label for="loginUsername" class="form-label">ユーザー名</label>
+                            <input id="loginUsername" type="text" class="form-control" v-model="loginUsername" autocomplete="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label">パスワード</label>
+                            <input id="loginPassword" type="password" class="form-control" v-model="loginPassword" autocomplete="current-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" :disabled="isLoading">ログイン</button>
+                    </form>
                     <div v-if="authError" class="alert alert-danger mt-3 mb-0 text-start" style="font-size: .85rem;">{{ authError }}</div>
                 </div>
             </div>
@@ -204,6 +212,46 @@
             <!-- Date Filters -->
             <date-filter></date-filter>
 
+            <!-- 目標達成率 -->
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">目標達成率</div>
+                        <div class="card-body">
+                            <div v-for="c in root.categories.value" :key="c.id" class="mb-4">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ c.name }}</strong>
+                                    <span v-if="root.categoryGoals.value[c.name] > 0" class="text-muted">目標 ¥{{ formatCurrency(root.categoryGoals.value[c.name]) }}</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between small mt-2">
+                                    <span>実績: ¥{{ formatCurrency(categorySummary[c.name] || 0) }}</span>
+                                    <span v-if="root.categoryGoals.value[c.name] > 0">{{ ((categorySummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100).toFixed(1) }}%</span>
+                                </div>
+                                <div class="progress" style="height: 14px;">
+                                    <div class="progress-bar" :style="{
+                                        width: (root.categoryGoals.value[c.name] > 0 ? Math.min((categorySummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100, 100) : 0) + '%',
+                                        backgroundColor: root.categoryColorMap.value[c.name]
+                                    }"></div>
+                                </div>
+
+                                <div class="d-flex justify-content-between small mt-2 text-muted">
+                                    <span>見込み: ¥{{ formatCurrency(categoryForecastSummary[c.name] || 0) }}</span>
+                                    <span v-if="root.categoryGoals.value[c.name] > 0">{{ ((categoryForecastSummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100).toFixed(1) }}%</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" :style="{
+                                        width: (root.categoryGoals.value[c.name] > 0 ? Math.min((categoryForecastSummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100, 100) : 0) + '%',
+                                        backgroundColor: root.categoryColorMap.value[c.name],
+                                        opacity: 0.4
+                                    }"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- KPI Cards -->
             <div class="row">
                 <div class="col-md-6 mb-4">
@@ -226,28 +274,19 @@
 
             <!-- Charts -->
             <div class="row">
-                <div class="col-lg-6 mb-4">
+                <div class="col-lg-4 mb-4" v-for="c in root.categories.value" :key="c.id">
                     <div class="card">
-                        <div class="card-header">分類別 金額</div>
+                        <div class="card-header">{{ c.name }}（部門別内訳）</div>
                         <div class="card-body">
                             <div class="chart-container">
-                                <canvas ref="categoryChart"></canvas>
+                                <canvas :ref="el => setCategoryPieRef(c.id, el)"></canvas>
                             </div>
-                            <ul class="mt-3 mb-0 list-unstyled">
-                                <li v-for="(amt, cat) in categorySummary" :key="cat" class="mb-2">
-                                    <div class="d-flex justify-content-between">
-                                        <span>{{ cat }}: ¥{{ formatCurrency(amt) }}</span>
-                                        <span v-if="root.categoryGoals.value[cat] > 0">{{ (amt / root.categoryGoals.value[cat] * 100).toFixed(1) }}%</span>
-                                    </div>
-                                    <div v-if="root.categoryGoals.value[cat] > 0" class="progress">
-                                        <div class="progress-bar" :style="{ width: Math.min(amt / root.categoryGoals.value[cat] * 100, 100) + '%' }"></div>
-                                    </div>
-                                </li>
-                            </ul>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-6 mb-4">
+            </div>
+            <div class="row">
+                <div class="col-12 mb-4">
                     <div class="card">
                         <div class="card-header">部門別 金額</div>
                         <div class="card-body">
@@ -296,8 +335,12 @@
                             <textarea class="form-control" id="content" rows="3" v-model="newInitiative.content" required></textarea>
                         </div>
                         <div class="col-md-6">
-                            <label for="amount" class="form-label">金額 (円)</label>
-                            <clearable-input type="text" class="form-control" id="amount" v-model="amountInput" @input="handleAmountInput" required></clearable-input>
+                            <label for="forecastAmount" class="form-label">見込み金額 (円)</label>
+                            <clearable-input type="text" class="form-control" id="forecastAmount" v-model="forecastAmountInput" @input="handleForecastAmountInput" required></clearable-input>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="actualAmount" class="form-label">実績金額 (円)</label>
+                            <clearable-input type="text" class="form-control" id="actualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary mt-4" :disabled="root.isLoading.value">{{ isEdit ? '更新する' : '登録する' }}</button>
@@ -352,7 +395,8 @@
                                 <th scope="col" @click="sortBy('title')" class="th-sortable">タイトル <i :class="sortIcon('title')"></i></th>
                                 <th scope="col" @click="sortBy('category')" class="th-sortable">分類 <i :class="sortIcon('category')"></i></th>
                                 <th scope="col">内容</th>
-                                <th scope="col" @click="sortBy('amount')" class="th-sortable text-end">金額(円) <i :class="sortIcon('amount')"></i></th>
+                                <th scope="col" @click="sortBy('forecastAmount')" class="th-sortable text-end">見込み金額(円) <i :class="sortIcon('forecastAmount')"></i></th>
+                                <th scope="col" @click="sortBy('actualAmount')" class="th-sortable text-end">実績金額(円) <i :class="sortIcon('actualAmount')"></i></th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -365,13 +409,14 @@
                                 <td>{{ item.title }}</td>
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
                                 <td>{{ item.content }}</td>
-                                <td class="text-end">{{ formatCurrency(item.amount) }}</td>
+                                <td class="text-end">{{ formatCurrency(item.forecastAmount) }}</td>
+                                <td class="text-end">{{ formatCurrency(item.actualAmount) }}</td>
                                 <td class="text-nowrap">
                                     <button class="btn btn-sm btn-outline-secondary" @click.stop="copy(item.id)">複写</button>
                                 </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
-                                <td colspan="8" class="text-center">該当するデータがありません。</td>
+                                <td colspan="9" class="text-center">該当するデータがありません。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -383,20 +428,6 @@
     <script type="text/x-template" id="settings-template">
         <div>
             <h3 class="mb-3">設定</h3>
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">マスタ配信システム連携</h5>
-                    <p class="text-muted mb-2" style="font-size: .9rem;">社内のマスタ配信システムから社員マスタ・部門マスタを取得し、氏名・部門の一覧を置き換えます。</p>
-                    <button class="btn btn-primary" @click="syncMasters" :disabled="root.isLoading.value || syncing">
-                        <span v-if="syncing" class="spinner-border spinner-border-sm me-2" role="status"></span>
-                        {{ syncing ? '同期中...' : 'マスタを同期' }}
-                    </button>
-                    <div v-if="syncResult" class="alert mt-3 mb-0" :class="syncResult.ok ? 'alert-success' : 'alert-danger'" style="font-size: .9rem;">
-                        <span v-if="syncResult.ok">同期しました（氏名 {{ syncResult.names }} 件 / 部門 {{ syncResult.departments }} 件）。</span>
-                        <span v-else>同期に失敗しました: {{ syncResult.message }}</span>
-                    </div>
-                </div>
-            </div>
             <div class="mb-4">
                 <label for="aboutText" class="form-label">業績アップ活動の説明</label>
                 <textarea id="aboutText" class="form-control mb-2" rows="3" v-model="aboutInput"></textarea>
@@ -427,11 +458,25 @@
                 </h2>
                 <div id="collapseDepartment" class="accordion-collapse collapse" aria-labelledby="headingDepartment" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
-                        <p class="text-muted mb-2" style="font-size: .85rem;"><i class="bi bi-lock me-1"></i>部門はマスタ配信システムから同期されます。ここでは編集できません。</p>
-                        <ul class="list-group mb-0">
-                            <li class="list-group-item" v-for="d in root.departments.value" :key="d.id">{{ d.name || d }}</li>
-                            <li class="list-group-item text-muted" v-if="root.departments.value.length === 0">未同期です。上部の「マスタを同期」から取り込んでください。</li>
+                        <ul class="list-group mb-2">
+                            <li class="list-group-item d-flex align-items-center" v-for="d in root.departments.value" :key="d.id">
+                                <template v-if="editingDeptId === d.id">
+                                    <clearable-input type="text" class="form-control me-2" v-model="editingDeptName"></clearable-input>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveDepartment(d.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelDepartmentEdit" :disabled="root.isLoading.value">キャンセル</button>
+                                </template>
+                                <template v-else>
+                                    <span class="me-auto">{{ d.name || d }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startDepartmentEdit(d)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeDepartment(d.id)" :disabled="root.isLoading.value">削除</button>
+                                </template>
+                            </li>
+                            <li class="list-group-item text-muted" v-if="root.departments.value.length === 0">部門が登録されていません。下のフォームから追加してください。</li>
                         </ul>
+                        <form class="d-flex" @submit.prevent="addDepartment">
+                            <clearable-input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加..."></clearable-input>
+                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -443,11 +488,29 @@
                 </h2>
                 <div id="collapseName" class="accordion-collapse collapse" aria-labelledby="headingName" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
-                        <p class="text-muted mb-2" style="font-size: .85rem;"><i class="bi bi-lock me-1"></i>氏名はマスタ配信システムから同期されます。ここでは編集できません。</p>
-                        <ul class="list-group mb-0">
-                            <li class="list-group-item" v-for="n in root.names.value" :key="n.id">{{ n.name || n }}</li>
-                            <li class="list-group-item text-muted" v-if="root.names.value.length === 0">未同期です。上部の「マスタを同期」から取り込んでください。</li>
+                        <ul class="list-group mb-2">
+                            <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
+                                <template v-if="editingNameId === n.id">
+                                    <clearable-input type="text" class="form-control me-2" v-model="editingNameName"></clearable-input>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading.value">キャンセル</button>
+                                </template>
+                                <template v-else>
+                                    <span class="me-auto">{{ n.name || n }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
+                                </template>
+                            </li>
+                            <li class="list-group-item text-muted" v-if="root.names.value.length === 0">氏名が登録されていません。下のフォームから追加してください。</li>
                         </ul>
+                        <form class="d-flex mb-2" @submit.prevent="addName">
+                            <clearable-input type="text" class="form-control me-2" v-model="newName" placeholder="追加..."></clearable-input>
+                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
+                        </form>
+                        <form class="d-flex" @submit.prevent="importNamesCsv">
+                            <input type="file" accept=".csv,text/csv" class="form-control me-2" ref="namesFile">
+                            <button class="btn btn-outline-primary text-nowrap" :disabled="root.isLoading.value">CSVから追加</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -496,11 +559,11 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import {
-            getAuth, OAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut, connectAuthEmulator
+            getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, connectAuthEmulator
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import {
             getFirestore, collection, doc, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-            query, where, writeBatch, serverTimestamp, connectFirestoreEmulator, onSnapshot
+            query, where, writeBatch, serverTimestamp, connectFirestoreEmulator
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
@@ -511,18 +574,16 @@
             messagingSenderId: "601752128597",
             appId: "1:601752128597:web:701d18c3db12cf417858dc"
         };
-        // Microsoft Entra ID (Azure AD) のテナントID。
-        // シングルテナント登録のアプリでは /common が使えないため、テナント固有エンドポイントを
-        // 使うようここで指定する（自組織 westa.co.jp のアカウントに限定される）。
-        const MS_TENANT = '208aac18-8247-4354-a8bf-617d2198ba7c';
+        // ログイン画面の「ユーザー名」を Firebase Authentication のメール/パスワード
+        // プロバイダで扱うための疑似メールドメイン（実在するメールアドレスである必要はない）。
+        const LOGIN_EMAIL_DOMAIN = 'gyoseki-up.local';
 
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
         const db = getFirestore(firebaseApp);
 
         // ローカル開発時は Firebase Emulator に接続。
-        // ただし ?prod を付けると localhost でも本番の Auth/Firestore に接続する
-        // (Azure/Microsoft 連携はエミュレータでは検証できないため)。
+        // ただし ?prod を付けると localhost でも本番の Auth/Firestore に接続する。
         const urlParams = new URLSearchParams(location.search);
         const isLocalhost = ['localhost', '127.0.0.1'].includes(location.hostname);
         const useEmulators = isLocalhost && !urlParams.has('prod');
@@ -550,10 +611,14 @@
             template: '#dashboard-template',
             setup() {
                 const root = inject('root');
-                const categoryChart = ref(null);
                 const departmentChart = ref(null);
-                let categoryChartInstance = null;
                 let departmentChartInstance = null;
+                const categoryPieRefs = ref({});
+                const categoryPieInstances = {};
+
+                const setCategoryPieRef = (id, el) => {
+                    if (el) categoryPieRefs.value[id] = el;
+                };
 
                 const totalAmount = root.totalAmount;
 
@@ -561,7 +626,19 @@
                     const summary = {};
                     root.initiatives.value.forEach(item => {
                         if (!summary[item.category]) summary[item.category] = 0;
-                        summary[item.category] += item.amount;
+                        summary[item.category] += item.actualAmount;
+                    });
+                    return summary;
+                });
+
+                // 見込み金額 = 実績が未確定(0)の取り組みは見込み金額を、
+                // 実績が確定している取り組みは実績金額を積み上げて算出する
+                // (実績確定分を見込みに二重計上しないため)
+                const categoryForecastSummary = computed(() => {
+                    const summary = {};
+                    root.initiatives.value.forEach(item => {
+                        if (!summary[item.category]) summary[item.category] = 0;
+                        summary[item.category] += item.actualAmount > 0 ? item.actualAmount : item.forecastAmount;
                     });
                     return summary;
                 });
@@ -571,25 +648,60 @@
                     root.initiatives.value.forEach(item => {
                         if (!summary[item.department]) summary[item.department] = {};
                         if (!summary[item.department][item.category]) summary[item.department][item.category] = 0;
-                        summary[item.department][item.category] += item.amount;
+                        summary[item.department][item.category] += item.actualAmount;
                     });
                     return summary;
                 });
 
-                const renderCharts = () => {
-                    if (categoryChart.value) {
-                        const labels = Object.keys(categorySummary.value);
-                        const data = Object.values(categorySummary.value);
-                        const colors = labels.map(label => root.categoryColorMap.value[label]);
-                        if (!categoryChartInstance) {
-                            categoryChartInstance = new Chart(categoryChart.value.getContext('2d'), {
-                                type: 'doughnut',
+                const renderDepartmentChart = () => {
+                    if (!departmentChart.value) return;
+                    const labels = Object.keys(departmentCategorySummary.value);
+                    const categoriesList = root.categories.value.map(c => c.name);
+                    const datasets = categoriesList.map(cat => ({
+                        label: cat,
+                        data: labels.map(dept => (departmentCategorySummary.value[dept][cat] || 0)),
+                        backgroundColor: root.categoryColorMap.value[cat]
+                    }));
+                    if (!departmentChartInstance) {
+                        departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
+                            type: 'bar',
+                            data: { labels, datasets },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: { x: { stacked: true }, y: { stacked: true } },
+                                plugins: {
+                                    legend: { position: 'top' },
+                                    datalabels: {
+                                        formatter: (value, ctx) => {
+                                            const idx = ctx.dataIndex;
+                                            const total = ctx.chart.data.datasets.reduce((sum, d) => sum + d.data[idx], 0);
+                                            return total ? (value / total * 100).toFixed(1) + '%' : '';
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        departmentChartInstance.data.labels = labels;
+                        departmentChartInstance.data.datasets = datasets;
+                        departmentChartInstance.update();
+                    }
+                };
+
+                const renderCategoryPies = () => {
+                    const departments = Object.keys(departmentCategorySummary.value);
+                    root.categories.value.forEach(c => {
+                        const canvas = categoryPieRefs.value[c.id];
+                        if (!canvas) return;
+                        const data = departments.map(dept => departmentCategorySummary.value[dept][c.name] || 0);
+                        const colors = departments.map((dept, idx) => colorPalette[idx % colorPalette.length]);
+                        if (!categoryPieInstances[c.id]) {
+                            categoryPieInstances[c.id] = new Chart(canvas.getContext('2d'), {
+                                type: 'pie',
                                 data: {
-                                    labels,
-                                    datasets: [{
-                                        data,
-                                        backgroundColor: colors
-                                    }]
+                                    labels: departments,
+                                    datasets: [{ data, backgroundColor: colors }]
                                 },
                                 options: {
                                     responsive: true,
@@ -606,57 +718,36 @@
                                 }
                             });
                         } else {
-                            categoryChartInstance.data.labels = labels;
-                            categoryChartInstance.data.datasets[0].data = data;
-                            categoryChartInstance.data.datasets[0].backgroundColor = colors;
-                            categoryChartInstance.update();
+                            const inst = categoryPieInstances[c.id];
+                            inst.data.labels = departments;
+                            inst.data.datasets[0].data = data;
+                            inst.data.datasets[0].backgroundColor = colors;
+                            inst.update();
                         }
-                    }
-
-                    if (departmentChart.value) {
-                        const labels = Object.keys(departmentCategorySummary.value);
-                        const categoriesList = root.categories.value.map(c => c.name);
-                        const datasets = categoriesList.map(cat => ({
-                            label: cat,
-                            data: labels.map(dept => (departmentCategorySummary.value[dept][cat] || 0)),
-                            backgroundColor: root.categoryColorMap.value[cat]
-                        }));
-                        if (!departmentChartInstance) {
-                            departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
-                                type: 'bar',
-                                data: { labels, datasets },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    scales: { x: { stacked: true }, y: { stacked: true } },
-                                    plugins: {
-                                        legend: { position: 'top' },
-                                        datalabels: {
-                                            formatter: (value, ctx) => {
-                                                const idx = ctx.dataIndex;
-                                                const total = ctx.chart.data.datasets.reduce((sum, d) => sum + d.data[idx], 0);
-                                                return total ? (value / total * 100).toFixed(1) + '%' : '';
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        } else {
-                            departmentChartInstance.data.labels = labels;
-                            departmentChartInstance.data.datasets = datasets;
-                            departmentChartInstance.update();
-                        }
-                    }
+                    });
                 };
 
-                onMounted(renderCharts);
-                watch(root.initiatives, renderCharts);
+                onMounted(() => {
+                    renderDepartmentChart();
+                    renderCategoryPies();
+                });
+                watch(root.initiatives, () => {
+                    renderDepartmentChart();
+                    renderCategoryPies();
+                });
+                // 分類マスタの読み込みタイミングによって円グラフ用canvasが後から追加されるため、
+                // DOM更新後(flush: 'post')に描画する
+                watch(() => root.categories.value.map(c => c.id).join(','), () => renderCategoryPies(), { flush: 'post' });
                 onBeforeUnmount(() => {
-                    if (categoryChartInstance) categoryChartInstance.destroy();
                     if (departmentChartInstance) departmentChartInstance.destroy();
+                    Object.values(categoryPieInstances).forEach(inst => inst.destroy());
                 });
 
-                return { root, totalAmount, formatCurrency: root.formatCurrency, categoryChart, departmentChart, categorySummary };
+                return {
+                    root, totalAmount, formatCurrency: root.formatCurrency,
+                    departmentChart, categorySummary, categoryForecastSummary,
+                    setCategoryPieRef,
+                };
             }
         };
 
@@ -674,29 +765,54 @@
                     date: new Date().toISOString().slice(0, 10),
                     category: '粗利額アップ',
                     content: '',
-                    amount: null,
+                    forecastAmount: null,
+                    actualAmount: null,
                 });
 
-                const amountInput = ref('');
+                const forecastAmountInput = ref('');
+                const actualAmountInput = ref('');
 
-                watch(
-                    () => newInitiative.value.amount,
-                    (val) => {
-                        amountInput.value = val != null ? root.formatCurrency(val) : '';
-                    },
-                    { immediate: true }
-                );
+                // clearable-input はラップした<input>の@inputを内部の$emitより先に発火させるため、
+                // ref経由(inputRef.value)で値を読むと1文字分古い値を参照してしまい、
+                // 桁区切り再フォーマット時にカーソル位置がずれて数字が壊れる（例: 480000→4,8000）。
+                // event.target を直接読み書きすることでこのズレを避け、カーソル位置も桁数基準で復元する。
+                const makeAmountBinding = (field, inputRef) => {
+                    watch(
+                        () => newInitiative.value[field],
+                        (val) => {
+                            inputRef.value = val != null ? root.formatCurrency(val) : '';
+                        },
+                        { immediate: true }
+                    );
 
-                const handleAmountInput = () => {
-                    const numeric = amountInput.value.replace(/,/g, '');
-                    const val = parseInt(numeric, 10);
-                    newInitiative.value.amount = isNaN(val) ? null : val;
-                    if (numeric) {
-                        amountInput.value = root.formatCurrency(newInitiative.value.amount);
-                    } else {
-                        amountInput.value = '';
-                    }
+                    return (event) => {
+                        const target = event.target;
+                        const cursor = target.selectionStart ?? target.value.length;
+                        const digitsBeforeCursor = target.value.slice(0, cursor).replace(/\D/g, '').length;
+
+                        const numeric = target.value.replace(/\D/g, '');
+                        const val = numeric ? parseInt(numeric, 10) : null;
+                        newInitiative.value[field] = val;
+
+                        const formatted = val != null ? root.formatCurrency(val) : '';
+                        target.value = formatted;
+                        inputRef.value = formatted;
+
+                        let newCursor = 0;
+                        if (digitsBeforeCursor > 0) {
+                            let seen = 0;
+                            for (let i = 0; i < formatted.length; i++) {
+                                if (/\d/.test(formatted[i])) seen++;
+                                newCursor = i + 1;
+                                if (seen === digitsBeforeCursor) break;
+                            }
+                        }
+                        target.setSelectionRange(newCursor, newCursor);
+                    };
                 };
+
+                const handleForecastAmountInput = makeAmountBinding('forecastAmount', forecastAmountInput);
+                const handleActualAmountInput = makeAmountBinding('actualAmount', actualAmountInput);
 
                 const isEdit = computed(() => !!route.params.id);
 
@@ -724,7 +840,6 @@
                 });
 
                 const submit = async () => {
-                    handleAmountInput();
                     if (isEdit.value) {
                         await root.updateInitiative(route.params.id, newInitiative.value);
                     } else {
@@ -740,7 +855,7 @@
                     await router.push('/list');
                 };
 
-                return { newInitiative, submit, isEdit, remove, root, amountInput, handleAmountInput };
+                return { newInitiative, submit, isEdit, remove, root, forecastAmountInput, actualAmountInput, handleForecastAmountInput, handleActualAmountInput };
             }
         };
 
@@ -807,7 +922,7 @@
                 };
 
                 const exportCsv = () => {
-                    const headers = ['実施日', '部門', '氏名', 'タイトル', '分類', '内容', '金額'];
+                    const headers = ['実施日', '部門', '氏名', 'タイトル', '分類', '内容', '見込み金額', '実績金額'];
                     const rows = sortedInitiatives.value.map(item => [
                         item.date,
                         item.department,
@@ -815,7 +930,8 @@
                         item.title,
                         item.category,
                         item.content,
-                        item.amount
+                        item.forecastAmount,
+                        item.actualAmount
                     ]);
                     const csvContent = [headers, ...rows]
                         .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
@@ -925,19 +1041,6 @@
                       namesFile.value.value = '';
                   };
 
-                  const syncing = ref(false);
-                  const syncResult = ref(null);
-                  const syncMasters = async () => {
-                      if (!confirm('マスタ配信システムから取得した内容で、現在の氏名・部門の一覧を置き換えます。よろしいですか？')) return;
-                      syncing.value = true;
-                      syncResult.value = null;
-                      try {
-                          syncResult.value = await root.syncMasters();
-                      } finally {
-                          syncing.value = false;
-                      }
-                  };
-
                   const addCategory = async () => {
                       if (!newCategory.value) return;
                       await root.addCategory(newCategory.value);
@@ -1005,10 +1108,7 @@
                       removeCategory,
                       saveAbout,
                       saveDefaultPeriod,
-                      saveCategoryGoals,
-                      syncing,
-                      syncResult,
-                      syncMasters
+                      saveCategoryGoals
                   };
             }
         };
@@ -1041,6 +1141,8 @@
                 const user = ref(null);
                 const authReady = ref(false);
                 const authError = ref('');
+                const loginUsername = ref('');
+                const loginPassword = ref('');
 
                 const initiatives = ref([]);
                 const departments = ref([]);
@@ -1062,18 +1164,13 @@
                 });
 
                 const totalAmount = computed(() =>
-                    initiatives.value.reduce((sum, item) => sum + item.amount, 0)
+                    initiatives.value.reduce((sum, item) => sum + item.actualAmount, 0)
                 );
 
-                // ログイン中ユーザーのメールに一致する社員（新規登録の初期値に使う）
-                const myProfile = computed(() => {
-                    const email = (user.value && user.value.email || '').trim().toLowerCase();
-                    if (!email) return null;
-                    return names.value.find(n =>
-                        (n.email || '').toLowerCase() === email ||
-                        (n.upn || '').toLowerCase() === email
-                    ) || null;
-                });
+                // ログイン中ユーザーのプロフィール（氏名・部門、新規登録の初期値に使う）。
+                // users/{uid} はアカウント作成時に管理者スクリプト(tools/manage_users.py)が書き込む。
+                const myProfileDoc = ref(null);
+                const myProfile = computed(() => myProfileDoc.value);
 
                 const loadingCount = ref(0);
                 const isLoading = computed(() => loadingCount.value > 0);
@@ -1100,7 +1197,16 @@
                     if (end) clauses.push(where('date', '<=', end));
                     const q = clauses.length ? query(colRef('initiatives'), ...clauses) : colRef('initiatives');
                     const snap = await getDocs(q);
-                    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    // 旧「金額」フィールド（amount）のみを持つ既存データは実績金額として扱う
+                    return snap.docs.map(d => {
+                        const data = d.data();
+                        return {
+                            id: d.id,
+                            ...data,
+                            forecastAmount: data.forecastAmount ?? 0,
+                            actualAmount: data.actualAmount ?? data.amount ?? 0,
+                        };
+                    });
                 };
 
                 // 初回アクセス時に分類マスタと設定ドキュメントを初期化
@@ -1137,16 +1243,18 @@
                             if (!filterStart.value) filterStart.value = defaultStart.value;
                             if (!filterEnd.value) filterEnd.value = defaultEnd.value;
 
-                            const [inits, deps, nms, cats] = await Promise.all([
+                            const [inits, deps, nms, cats, profileSnap] = await Promise.all([
                                 queryInitiatives(filterStart.value, filterEnd.value),
                                 loadCollection('departments'),
                                 loadCollection('names'),
                                 loadCollection('categories'),
+                                user.value ? getDoc(doc(db, 'users', user.value.uid)) : null,
                             ]);
                             initiatives.value = inits;
                             departments.value = deps;
                             names.value = nms;
                             categories.value = cats;
+                            myProfileDoc.value = profileSnap && profileSnap.exists() ? profileSnap.data() : null;
                         } catch (error) {
                             console.error('Error fetching bootstrap data:', error);
                         }
@@ -1240,7 +1348,8 @@
                     date: data.date,
                     category: data.category,
                     content: data.content,
-                    amount: parseInt(data.amount, 10) || 0,
+                    forecastAmount: parseInt(data.forecastAmount, 10) || 0,
+                    actualAmount: parseInt(data.actualAmount, 10) || 0,
                 });
 
                 const submitInitiative = async (newInitiative) => {
@@ -1359,50 +1468,6 @@
                     });
                 };
 
-                // マスタ配信システムからの同期。
-                // APIキーはサーバー側でのみ扱うため、syncRequests にドキュメントを作成して
-                // サーバー側の Cloud Function を起動し、完了を購読して結果を受け取る。
-                const syncMasters = async () => {
-                    return await new Promise(async (resolve) => {
-                        await withLoading(async () => {
-                            try {
-                                const reqRef = await addDoc(colRef('syncRequests'), {
-                                    status: 'pending',
-                                    requestedBy: auth.currentUser ? auth.currentUser.email : '',
-                                    requestedAt: serverTimestamp(),
-                                });
-                                await new Promise((done) => {
-                                    const timer = setTimeout(() => {
-                                        unsub();
-                                        done({ ok: false, message: 'タイムアウトしました。しばらくして一覧をご確認ください。' });
-                                    }, 120000);
-                                    const unsub = onSnapshot(reqRef, (snap) => {
-                                        const d = snap.data();
-                                        if (!d) return;
-                                        if (d.status === 'done') {
-                                            clearTimeout(timer);
-                                            unsub();
-                                            done({ ok: true, names: d.names, departments: d.departments });
-                                        } else if (d.status === 'error') {
-                                            clearTimeout(timer);
-                                            unsub();
-                                            done({ ok: false, message: d.error || '同期に失敗しました。' });
-                                        }
-                                    });
-                                }).then(async (result) => {
-                                    if (result.ok) {
-                                        await Promise.all([fetchNames(), fetchDepartments()]);
-                                    }
-                                    resolve(result);
-                                });
-                            } catch (error) {
-                                console.error('Error syncing masters:', error);
-                                resolve({ ok: false, message: String(error && error.message || error) });
-                            }
-                        });
-                    });
-                };
-
                 const formatCurrency = (value) => new Intl.NumberFormat('ja-JP').format(value);
 
                 const getCategoryClass = (category) => {
@@ -1425,19 +1490,17 @@
                 // --- Auth ---
                 const login = async () => {
                     authError.value = '';
+                    const username = loginUsername.value.trim();
+                    if (!username || !loginPassword.value) return;
                     try {
-                        const provider = new OAuthProvider('microsoft.com');
-                        provider.setCustomParameters(MS_TENANT ? { tenant: MS_TENANT, prompt: 'select_account' } : { prompt: 'select_account' });
-                        // エミュレータ、または ?redirect 指定時はリダイレクト方式を使う
-                        // (エミュレータやヘッドレス環境ではポップアップが opener を失う/ブロックされるため)
-                        if (useEmulators || urlParams.has('redirect')) {
-                            await signInWithRedirect(auth, provider);
-                        } else {
-                            await signInWithPopup(auth, provider);
-                        }
+                        const pseudoEmail = `${username.toLowerCase()}@${LOGIN_EMAIL_DOMAIN}`;
+                        await signInWithEmailAndPassword(auth, pseudoEmail, loginPassword.value);
+                        loginPassword.value = '';
                     } catch (error) {
                         console.error('Login error:', error);
-                        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                            authError.value = 'ユーザー名またはパスワードが正しくありません。';
+                        } else {
                             authError.value = 'ログインに失敗しました: ' + (error.message || error.code || error);
                         }
                     }
@@ -1457,6 +1520,7 @@
                         departments.value = [];
                         names.value = [];
                         categories.value = [];
+                        myProfileDoc.value = null;
                     }
                 });
 
@@ -1482,7 +1546,6 @@
                       addDepartment,
                       addName,
                       importNames,
-                      syncMasters,
                       addCategory,
                       updateDepartment,
                       deleteDepartment,
@@ -1501,7 +1564,7 @@
                       myProfile
                   });
 
-                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, authReady, authError, login, logout };
+                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, myProfile, authReady, authError, loginUsername, loginPassword, login, logout };
             }
         });
 

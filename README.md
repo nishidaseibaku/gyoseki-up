@@ -6,14 +6,16 @@
 - 取り組み内容の登録・一覧表示
 - 全体の貢献金額や総件数の集計
 - 分類別・部門別の貢献金額のグラフ表示
-- 設定画面で氏名一覧をCSVからインポート
-- Microsoft 365 (Entra ID) アカウントによるログイン（社内限定アクセス）
+- 設定画面で部門・氏名・分類マスタを追加/編集/削除（氏名はCSVからの一括インポートも可能）
+- ユーザー名・パスワードによるログイン（アカウントは管理者が事前作成、社内限定アクセス）
 
 ## 使用技術
 - ホスティング: Firebase Hosting
 - データベース: Cloud Firestore（ブラウザから直接アクセス、サーバーレス）
-- 認証: Firebase Authentication（Microsoft プロバイダ / OpenID Connect）
+- 認証: Firebase Authentication（メール/パスワードプロバイダ）
 - フロントエンド: Vue.js 3, Vue Router, Chart.js, Bootstrap 5, Tom Select（すべてCDN）
+
+外部システムとの連携は行わず、氏名・部門などのマスタデータもすべてこのアプリの中で管理する。
 
 Firebase プロジェクト: `gyoseki-dashboard-westa`（東京リージョン asia-northeast1）
 
@@ -26,7 +28,8 @@ Firebase プロジェクト: `gyoseki-dashboard-westa`（東京リージョン a
 ├── public/
 │   └── index.html           # アプリ本体（SPA）
 └── tools/
-    └── migrate_sqlite_to_firestore.py  # 旧SQLiteデータの移行スクリプト
+    ├── manage_users.py                    # ログインアカウントの作成・管理スクリプト
+    └── migrate_sqlite_to_firestore.py     # 旧SQLiteデータの移行スクリプト
 ```
 
 ## 開発
@@ -38,7 +41,7 @@ npm install -g firebase-tools   # 未導入の場合
 firebase emulators:start
 ```
 
-ブラウザで `http://localhost:5000` を開きます。ログインはエミュレータの擬似アカウントが使えます。
+ブラウザで `http://localhost:5000` を開きます。ログインには `tools/manage_users.py` でエミュレータ上に作成したテストアカウントを使います（後述）。
 
 ## デプロイ
 
@@ -48,17 +51,45 @@ firebase deploy --only hosting,firestore
 
 公開URL: https://gyoseki-dashboard-westa.web.app
 
-## 認証の設定（初回のみ）
+## ログインアカウントの管理
 
-Microsoft ログインを有効にするには Azure ポータルでのアプリ登録が必要です。
+このアプリにセルフサインアップ画面は無く、利用者は管理者が事前に作成したアカウントでログインする。
+ログイン画面の「ユーザー名」は、内部的には Firebase Authentication のメール/パスワードプロバイダに
+疑似メールアドレス（`<ユーザー名>@gyoseki-up.local`。`public/index.html` の `LOGIN_EMAIL_DOMAIN` で定義）
+として登録される。実在するメールアドレスは不要。
 
-1. [Azure ポータル](https://portal.azure.com) → Microsoft Entra ID → アプリの登録 → 新規登録
-   - サポートされているアカウントの種類: **この組織ディレクトリのみのアカウント**（シングルテナント。これが社外アカウント排除の要）
-   - リダイレクトURI (Web): `https://gyoseki-dashboard-westa.firebaseapp.com/__/auth/handler`
-2. 「証明書とシークレット」でクライアントシークレットを作成し、値を控える
-3. [Firebase Console](https://console.firebase.google.com/project/gyoseki-dashboard-westa/authentication/providers) → Authentication → ログイン方法 → Microsoft を有効化
-   - Azure のアプリケーション (クライアント) ID とシークレットを貼り付ける
-4. `public/index.html` の `MS_TENANT` に Azure のディレクトリ (テナント) ID を設定するとログイン画面が自組織に固定される
+アカウントの作成・パスワードリセット・無効化は `tools/manage_users.py` で行う。
+表示名などに日本語を含む引数を渡す場合、Git Bash では文字化けすることがあるため
+**PowerShell から実行する**こと。
+
+```
+pip install firebase-admin
+gcloud auth application-default login   # 一度だけ
+
+# アカウント作成
+python tools/manage_users.py --project gyoseki-dashboard-westa create <ユーザー名> <パスワード> <表示名> --department <部門名>
+
+# パスワードリセット
+python tools/manage_users.py --project gyoseki-dashboard-westa reset-password <ユーザー名> <新パスワード>
+
+# 無効化 / 再有効化 / 一覧
+python tools/manage_users.py --project gyoseki-dashboard-westa disable <ユーザー名>
+python tools/manage_users.py --project gyoseki-dashboard-westa enable <ユーザー名>
+python tools/manage_users.py --project gyoseki-dashboard-westa list
+```
+
+ローカルの Emulator に対して実行する場合は、`firebase emulators:start` を起動した状態で、
+別ターミナルで以下の環境変数を設定してから実行する（本番データには影響しない）。
+
+```
+set FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
+set FIRESTORE_EMULATOR_HOST=localhost:8080
+```
+
+## マスタデータ（部門・氏名・分類）
+
+外部システムとの同期は行わず、設定画面（ログイン後「設定」メニュー）からアプリ内で直接管理する。
+氏名は一件ずつの追加・編集・削除のほか、CSVファイルからの一括インポートにも対応する。
 
 ## 旧バージョンからのデータ移行
 

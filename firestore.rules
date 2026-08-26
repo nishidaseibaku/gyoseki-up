@@ -1,23 +1,27 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Microsoft 365 (Entra ID) でログイン済みのユーザーのみアクセス可。
-    // 組織外アカウントの排除は Azure 側のアプリ登録を「この組織のディレクトリのみ」
-    // (シングルテナント) にすることで担保する。
+    // ユーザー名/パスワードでログイン済みのユーザーのみアクセス可。
+    // アカウントは管理者が tools/manage_users.py で事前作成するため、
+    // セルフサインアップは無く外部の人間がアカウントを作ることはできない。
 
-    // 同期マスタ（氏名・部門）はマスタ配信システムからの同期専用。
-    // クライアントからは閲覧のみ許可し、書き込みは Cloud Function (Admin SDK) だけが行う
-    // （Admin SDK はセキュリティルールをバイパスするため、ここで write:false でも同期は動作する）。
-    match /names/{docId} {
-      allow read: if request.auth != null;
+    // ログインユーザー自身のプロフィール（氏名・部門）。
+    // 管理者のアカウント作成スクリプト (Admin SDK) からのみ書き込まれる。
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;
+    }
+
+    // 氏名・部門マスタは自前で保有し、認証済みユーザーなら誰でも読み書き可
+    // （分類・業績実績・設定と同じ扱い）。
+    match /names/{docId} {
+      allow read, write: if request.auth != null;
     }
     match /departments/{docId} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow read, write: if request.auth != null;
     }
 
-    // 業績実績・分類・設定・同期リクエストは認証済みユーザーが読み書き可。
+    // 業績実績・分類・設定は認証済みユーザーが読み書き可。
     match /initiatives/{docId} {
       allow read, write: if request.auth != null;
     }
@@ -25,9 +29,6 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     match /settings/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    match /syncRequests/{docId} {
       allow read, write: if request.auth != null;
     }
   }
