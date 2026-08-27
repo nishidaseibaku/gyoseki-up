@@ -19,8 +19,11 @@ public/index.html の LOGIN_EMAIL_DOMAIN と同じ疑似メールドメインに
   set FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
   set FIRESTORE_EMULATOR_HOST=localhost:8080
 
+表示名は、新規登録画面での氏名・所属（社/課）の自動選択に使われるため、
+設定画面の「氏名」マスタに登録されている氏名と一致させておくとよい。
+
 使い方:
-  python tools/manage_users.py --project <PROJECT_ID> create <username> <password> <表示名> [--department 部門名]
+  python tools/manage_users.py --project <PROJECT_ID> create <username> <password> <表示名>
   python tools/manage_users.py --project <PROJECT_ID> reset-password <username> <新パスワード>
   python tools/manage_users.py --project <PROJECT_ID> disable <username>
   python tools/manage_users.py --project <PROJECT_ID> enable <username>
@@ -44,7 +47,6 @@ def cmd_create(args):
     firestore.client().collection("users").document(user.uid).set({
         "username": args.username.strip().lower(),
         "name": args.display_name,
-        "department": args.department or "",
     })
     print(f"作成しました: uid={user.uid} username={args.username} email={email}")
 
@@ -74,8 +76,7 @@ def cmd_list(args):
         status = "無効" if user.disabled else "有効"
         username = profile.get("username", "?")
         name = profile.get("name", "")
-        department = profile.get("department", "")
-        print(f"{username:20s} {name:15s} {department:10s} {status}  ({user.email})")
+        print(f"{username:20s} {name:15s} {status}  ({user.email})")
 
 
 def main():
@@ -87,7 +88,6 @@ def main():
     p.add_argument("username")
     p.add_argument("password")
     p.add_argument("display_name")
-    p.add_argument("--department", default="")
     p.set_defaults(func=cmd_create)
 
     p = sub.add_parser("reset-password", help="パスワードを変更")

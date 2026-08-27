@@ -3,17 +3,15 @@
 社内の業績改善への取り組みを全社で共有し、可視化するためのダッシュボードアプリケーションです。
 
 ## 機能
-- 取り組み内容の登録・一覧表示
-- 全体の貢献金額や総件数の集計
-- 分類別・部門別の貢献金額のグラフ表示
-- 設定画面で部門・氏名・分類マスタを追加/編集/削除（氏名はCSVからの一括インポートも可能）
+- 取り組み内容の登録・一覧表示（検索・並び替え・CSVエクスポート）
+- 設定画面で社・課・氏名・分類マスタを追加/編集/削除（氏名はCSVからの一括インポートも可能）
 - ユーザー名・パスワードによるログイン（アカウントは管理者が事前作成、社内限定アクセス）
 
 ## 使用技術
 - ホスティング: Firebase Hosting
 - データベース: Cloud Firestore（ブラウザから直接アクセス、サーバーレス）
 - 認証: Firebase Authentication（メール/パスワードプロバイダ）
-- フロントエンド: Vue.js 3, Vue Router, Chart.js, Bootstrap 5, Tom Select（すべてCDN）
+- フロントエンド: Vue.js 3, Vue Router, Bootstrap 5, Tom Select（すべてCDN）
 
 外部システムとの連携は行わず、氏名・部門などのマスタデータもすべてこのアプリの中で管理する。
 
@@ -67,7 +65,7 @@ pip install firebase-admin
 gcloud auth application-default login   # 一度だけ
 
 # アカウント作成
-python tools/manage_users.py --project gyoseki-up-98j3h4t create <ユーザー名> <パスワード> <表示名> --department <部門名>
+python tools/manage_users.py --project gyoseki-up-98j3h4t create <ユーザー名> <パスワード> <表示名>
 
 # パスワードリセット
 python tools/manage_users.py --project gyoseki-up-98j3h4t reset-password <ユーザー名> <新パスワード>
@@ -86,10 +84,14 @@ set FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 set FIRESTORE_EMULATOR_HOST=localhost:8080
 ```
 
-## マスタデータ（部門・氏名・分類）
+## マスタデータ（社・課・氏名・分類）
 
 外部システムとの同期は行わず、設定画面（ログイン後「設定」メニュー）からアプリ内で直接管理する。
-氏名は一件ずつの追加・編集・削除のほか、CSVファイルからの一括インポートにも対応する。
+
+氏名は「社 → 課 → 氏名」の階層で管理する。1人の氏名は必ずどこか1つの課に属し、
+1つの課は必ずどこか1つの社に属する（社・課を先に登録してから氏名を追加する）。
+取り組み実績の登録画面では氏名を選ぶと、その人が属する社・課が自動的に設定される。
+氏名は一件ずつの追加・編集・削除のほか、指定した課へのCSVファイルからの一括インポートにも対応する。
 
 ## 旧バージョンからのデータ移行
 

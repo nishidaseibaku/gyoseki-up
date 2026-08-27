@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>業績アップ取り組みダッシュボード</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d6efd'/%3E%3Cpath d='M7 21 L13 14 L18 18 L25 8' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M20 8 H25 V13' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -196,12 +197,12 @@
                 <form @submit.prevent="submit">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="department" class="form-label">部門・チーム</label>
-                            <tom-select id="department" class="form-select" :options="root.departments.value.map(d => d.name)" v-model="newInitiative.department" required></tom-select>
+                            <label for="name" class="form-label">氏名</label>
+                            <tom-select id="name" class="form-select" :options="root.names.value.map(n => n.name)" :model-value="newInitiative.name" @update:model-value="onNameChange" required></tom-select>
                         </div>
                         <div class="col-md-6">
-                            <label for="name" class="form-label">氏名</label>
-                            <tom-select id="name" class="form-select" :options="root.names.value.map(n => n.name)" v-model="newInitiative.name" required></tom-select>
+                            <label class="form-label">所属</label>
+                            <input type="text" class="form-control" :value="(newInitiative.company || '―') + ' / ' + (newInitiative.section || '―')" disabled>
                         </div>
                         <div class="col-md-6">
                             <label for="title" class="form-label">タイトル</label>
@@ -259,8 +260,12 @@
                         <tom-select id="filterName" class="form-select" :options="root.names.value.map(n => n.name)" v-model="filters.name" placeholder="氏名で検索..."></tom-select>
                     </div>
                     <div class="col-md-2">
-                        <label for="filterDepartment" class="form-label">部門</label>
-                        <tom-select id="filterDepartment" class="form-select" :options="root.departments.value.map(d => d.name)" v-model="filters.department" placeholder="部門で検索..."></tom-select>
+                        <label for="filterCompany" class="form-label">社</label>
+                        <tom-select id="filterCompany" class="form-select" :options="root.companies.value.map(c => c.name)" v-model="filters.company" placeholder="社で検索..."></tom-select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filterSection" class="form-label">課</label>
+                        <tom-select id="filterSection" class="form-select" :options="root.sections.value.map(s => s.name)" v-model="filters.section" placeholder="課で検索..."></tom-select>
                     </div>
                     <div class="col-md-2">
                         <label for="filterCategory" class="form-label">分類</label>
@@ -277,7 +282,8 @@
                         <thead>
                             <tr>
                                 <th scope="col" @click="sortBy('date')" class="th-sortable">実施日 <i :class="sortIcon('date')"></i></th>
-                                <th scope="col" @click="sortBy('department')" class="th-sortable">部門 <i :class="sortIcon('department')"></i></th>
+                                <th scope="col" @click="sortBy('company')" class="th-sortable">社 <i :class="sortIcon('company')"></i></th>
+                                <th scope="col" @click="sortBy('section')" class="th-sortable">課 <i :class="sortIcon('section')"></i></th>
                                 <th scope="col" @click="sortBy('name')" class="th-sortable">氏名 <i :class="sortIcon('name')"></i></th>
                                 <th scope="col" @click="sortBy('title')" class="th-sortable">タイトル <i :class="sortIcon('title')"></i></th>
                                 <th scope="col" @click="sortBy('category')" class="th-sortable">分類 <i :class="sortIcon('category')"></i></th>
@@ -291,7 +297,8 @@
                             <tr v-for="item in sortedInitiatives" :key="item.id"
                                 tabindex="0" @keyup.enter="edit(item.id)" @click="edit(item.id)" style="cursor:pointer">
                                 <td>{{ item.date }}</td>
-                                <td>{{ item.department }}</td>
+                                <td>{{ item.company }}</td>
+                                <td>{{ item.section }}</td>
                                 <td>{{ item.name }}</td>
                                 <td>{{ item.title }}</td>
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
@@ -303,7 +310,7 @@
                                 </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
-                                <td colspan="9" class="text-center">該当するデータがありません。</td>
+                                <td colspan="10" class="text-center">該当するデータがありません。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -338,32 +345,69 @@
             </div>
             <div class="accordion" id="settingsAccordion">
             <div class="accordion-item">
-                <h2 class="accordion-header" id="headingDepartment">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDepartment" aria-expanded="false" aria-controls="collapseDepartment">
-                        部門
+                <h2 class="accordion-header" id="headingCompany">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCompany" aria-expanded="false" aria-controls="collapseCompany">
+                        社
                     </button>
                 </h2>
-                <div id="collapseDepartment" class="accordion-collapse collapse" aria-labelledby="headingDepartment" data-bs-parent="#settingsAccordion">
+                <div id="collapseCompany" class="accordion-collapse collapse" aria-labelledby="headingCompany" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
                         <ul class="list-group mb-2">
-                            <li class="list-group-item d-flex align-items-center" v-for="d in root.departments.value" :key="d.id">
-                                <template v-if="editingDeptId === d.id">
-                                    <clearable-input type="text" class="form-control me-2" v-model="editingDeptName"></clearable-input>
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveDepartment(d.id)" :disabled="root.isLoading.value">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelDepartmentEdit" :disabled="root.isLoading.value">キャンセル</button>
+                            <li class="list-group-item d-flex align-items-center" v-for="co in root.companies.value" :key="co.id">
+                                <template v-if="editingCompanyId === co.id">
+                                    <clearable-input type="text" class="form-control me-2" v-model="editingCompanyName"></clearable-input>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveCompany(co.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelCompanyEdit" :disabled="root.isLoading.value">キャンセル</button>
                                 </template>
                                 <template v-else>
-                                    <span class="me-auto">{{ d.name || d }}</span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startDepartmentEdit(d)" :disabled="root.isLoading.value">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeDepartment(d.id)" :disabled="root.isLoading.value">削除</button>
+                                    <span class="me-auto">{{ co.name || co }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startCompanyEdit(co)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeCompany(co.id)" :disabled="root.isLoading.value">削除</button>
                                 </template>
                             </li>
-                            <li class="list-group-item text-muted" v-if="root.departments.value.length === 0">部門が登録されていません。下のフォームから追加してください。</li>
+                            <li class="list-group-item text-muted" v-if="root.companies.value.length === 0">社が登録されていません。下のフォームから追加してください。</li>
                         </ul>
-                        <form class="d-flex" @submit.prevent="addDepartment">
-                            <clearable-input type="text" class="form-control me-2" v-model="newDepartment" placeholder="追加..."></clearable-input>
+                        <form class="d-flex" @submit.prevent="addCompany">
+                            <clearable-input type="text" class="form-control me-2" v-model="newCompany" placeholder="追加..."></clearable-input>
                             <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
                         </form>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingSection">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSection" aria-expanded="false" aria-controls="collapseSection">
+                        課
+                    </button>
+                </h2>
+                <div id="collapseSection" class="accordion-collapse collapse" aria-labelledby="headingSection" data-bs-parent="#settingsAccordion">
+                    <div class="accordion-body">
+                        <ul class="list-group mb-2">
+                            <li class="list-group-item d-flex align-items-center" v-for="s in root.sections.value" :key="s.id">
+                                <template v-if="editingSectionId === s.id">
+                                    <select class="form-select me-2" style="max-width: 220px;" v-model="editingSectionCompanyId">
+                                        <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
+                                    </select>
+                                    <clearable-input type="text" class="form-control me-2" v-model="editingSectionName"></clearable-input>
+                                    <button class="btn btn-sm btn-primary me-1" @click="saveSection(s.id)" :disabled="root.isLoading.value">保存</button>
+                                    <button class="btn btn-sm btn-secondary" @click="cancelSectionEdit" :disabled="root.isLoading.value">キャンセル</button>
+                                </template>
+                                <template v-else>
+                                    <span class="me-auto">{{ companyName(s.companyId) }} / {{ s.name || s }}</span>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startSectionEdit(s)" :disabled="root.isLoading.value">編集</button>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeSection(s.id)" :disabled="root.isLoading.value">削除</button>
+                                </template>
+                            </li>
+                            <li class="list-group-item text-muted" v-if="root.sections.value.length === 0">課が登録されていません。下のフォームから追加してください。</li>
+                        </ul>
+                        <form class="d-flex" @submit.prevent="addSection" v-if="root.companies.value.length > 0">
+                            <select class="form-select me-2" style="max-width: 220px;" v-model="newSectionCompanyId">
+                                <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
+                            </select>
+                            <clearable-input type="text" class="form-control me-2" v-model="newSectionName" placeholder="追加..."></clearable-input>
+                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
+                        </form>
+                        <p class="text-muted mb-0" style="font-size: .85rem;" v-else>課を追加するには、先に「社」を登録してください。</p>
                     </div>
                 </div>
             </div>
@@ -378,26 +422,38 @@
                         <ul class="list-group mb-2">
                             <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
                                 <template v-if="editingNameId === n.id">
+                                    <select class="form-select me-2" style="max-width: 220px;" v-model="editingNameSectionId">
+                                        <option v-for="s in root.sections.value" :key="s.id" :value="s.id">{{ companyName(s.companyId) }} / {{ s.name }}</option>
+                                    </select>
                                     <clearable-input type="text" class="form-control me-2" v-model="editingNameName"></clearable-input>
                                     <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading.value">保存</button>
                                     <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading.value">キャンセル</button>
                                 </template>
                                 <template v-else>
-                                    <span class="me-auto">{{ n.name || n }}</span>
+                                    <span class="me-auto">{{ n.name || n }} <span class="text-muted">（{{ sectionLabel(n.sectionId) }}）</span></span>
                                     <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading.value">編集</button>
                                     <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
                                 </template>
                             </li>
                             <li class="list-group-item text-muted" v-if="root.names.value.length === 0">氏名が登録されていません。下のフォームから追加してください。</li>
                         </ul>
-                        <form class="d-flex mb-2" @submit.prevent="addName">
-                            <clearable-input type="text" class="form-control me-2" v-model="newName" placeholder="追加..."></clearable-input>
-                            <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
-                        </form>
-                        <form class="d-flex" @submit.prevent="importNamesCsv">
-                            <input type="file" accept=".csv,text/csv" class="form-control me-2" ref="namesFile">
-                            <button class="btn btn-outline-primary text-nowrap" :disabled="root.isLoading.value">CSVから追加</button>
-                        </form>
+                        <template v-if="root.sections.value.length > 0">
+                            <form class="d-flex mb-2" @submit.prevent="addName">
+                                <select class="form-select me-2" style="max-width: 220px;" v-model="newNameSectionId">
+                                    <option v-for="s in root.sections.value" :key="s.id" :value="s.id">{{ companyName(s.companyId) }} / {{ s.name }}</option>
+                                </select>
+                                <clearable-input type="text" class="form-control me-2" v-model="newName" placeholder="追加..."></clearable-input>
+                                <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
+                            </form>
+                            <form class="d-flex" @submit.prevent="importNamesCsv">
+                                <select class="form-select me-2" style="max-width: 220px;" v-model="csvSectionId">
+                                    <option v-for="s in root.sections.value" :key="s.id" :value="s.id">{{ companyName(s.companyId) }} / {{ s.name }}</option>
+                                </select>
+                                <input type="file" accept=".csv,text/csv" class="form-control me-2" ref="namesFile">
+                                <button class="btn btn-outline-primary text-nowrap" :disabled="root.isLoading.value">CSVから追加</button>
+                            </form>
+                        </template>
+                        <p class="text-muted mb-0" style="font-size: .85rem;" v-else>氏名を追加するには、先に「課」を登録してください。</p>
                     </div>
                 </div>
             </div>
@@ -496,8 +552,9 @@
                 const route = VueRouter.useRoute();
 
                 const newInitiative = ref({
-                    department: '',
                     name: '',
+                    company: '',
+                    section: '',
                     title: '',
                     date: new Date().toISOString().slice(0, 10),
                     category: '粗利額アップ',
@@ -505,6 +562,21 @@
                     forecastAmount: null,
                     actualAmount: null,
                 });
+
+                // 氏名の選択に応じて、その人が所属する課・社を自動的に紐づける
+                // （社・課はここでは直接選ばせず、氏名マスタの登録内容から解決する）。
+                const resolveCompanySection = (name) => {
+                    const person = root.names.value.find(n => n.name === name);
+                    const section = person ? root.sections.value.find(s => s.id === person.sectionId) : null;
+                    const company = section ? root.companies.value.find(co => co.id === section.companyId) : null;
+                    newInitiative.value.company = company ? company.name : '';
+                    newInitiative.value.section = section ? section.name : '';
+                };
+
+                const onNameChange = (name) => {
+                    newInitiative.value.name = name;
+                    resolveCompanySection(name);
+                };
 
                 const forecastAmountInput = ref('');
                 const actualAmountInput = ref('');
@@ -566,12 +638,12 @@
                             newInitiative.value = { ...existing };
                         }
                     } else {
-                        // 新規登録: ログインユーザーに一致する社員があれば氏名・部門を初期選択。
-                        // 一致しなければ未選択のまま。
+                        // 新規登録: ログインユーザーに一致する社員があれば氏名を初期選択し、
+                        // それに紐づく社・課も自動的に設定する。一致しなければ未選択のまま。
                         const me = root.myProfile.value;
-                        if (me) {
-                            newInitiative.value.name = me.name || '';
-                            if (me.department) newInitiative.value.department = me.department;
+                        if (me && me.name) {
+                            newInitiative.value.name = me.name;
+                            resolveCompanySection(me.name);
                         }
                     }
                 });
@@ -592,7 +664,7 @@
                     await router.push('/');
                 };
 
-                return { newInitiative, submit, isEdit, remove, root, forecastAmountInput, actualAmountInput, handleForecastAmountInput, handleActualAmountInput };
+                return { newInitiative, submit, isEdit, remove, root, forecastAmountInput, actualAmountInput, handleForecastAmountInput, handleActualAmountInput, onNameChange };
             }
         };
 
@@ -601,7 +673,7 @@
             setup() {
                 const root = inject('root');
                 const router = VueRouter.useRouter();
-                const filters = ref({ name: '', department: '', category: '' });
+                const filters = ref({ name: '', company: '', section: '', category: '' });
                 const sortByColumn = ref('date');
                 const sortDirection = ref('desc');
 
@@ -610,9 +682,10 @@
                 const filteredInitiatives = computed(() => {
                     return root.initiatives.value.filter(item => {
                         const nameMatch = safeLower(item.name).includes(safeLower(filters.value.name));
-                        const depMatch = safeLower(item.department).includes(safeLower(filters.value.department));
+                        const companyMatch = safeLower(item.company).includes(safeLower(filters.value.company));
+                        const sectionMatch = safeLower(item.section).includes(safeLower(filters.value.section));
                         const catMatch = filters.value.category ? item.category === filters.value.category : true;
-                        return nameMatch && depMatch && catMatch;
+                        return nameMatch && companyMatch && sectionMatch && catMatch;
                     });
                 });
 
@@ -647,7 +720,7 @@
                 };
 
                 const resetFilters = () => {
-                    filters.value = { name: '', department: '', category: '' };
+                    filters.value = { name: '', company: '', section: '', category: '' };
                 };
 
                 const edit = (id) => {
@@ -659,10 +732,11 @@
                 };
 
                 const exportCsv = () => {
-                    const headers = ['実施日', '部門', '氏名', 'タイトル', '分類', '内容', '見込み金額', '実績金額'];
+                    const headers = ['実施日', '社', '課', '氏名', 'タイトル', '分類', '内容', '見込み金額', '実績金額'];
                     const rows = sortedInitiatives.value.map(item => [
                         item.date,
-                        item.department,
+                        item.company,
+                        item.section,
                         item.name,
                         item.title,
                         item.category,
@@ -704,10 +778,28 @@
             template: '#settings-template',
             setup() {
                 const root = inject('root');
-                  const newDepartment = ref('');
+                  const newCompany = ref('');
+                  const newSectionName = ref('');
+                  const newSectionCompanyId = ref('');
                   const newName = ref('');
+                  const newNameSectionId = ref('');
+                  const csvSectionId = ref('');
                   const namesFile = ref(null);
                   const newCategory = ref('');
+
+                  watch(root.companies, (list) => {
+                      if (!newSectionCompanyId.value && list.length) newSectionCompanyId.value = list[0].id;
+                  }, { immediate: true });
+                  watch(root.sections, (list) => {
+                      if (!newNameSectionId.value && list.length) newNameSectionId.value = list[0].id;
+                      if (!csvSectionId.value && list.length) csvSectionId.value = list[0].id;
+                  }, { immediate: true });
+
+                  const companyName = (companyId) => root.companies.value.find(co => co.id === companyId)?.name || '';
+                  const sectionLabel = (sectionId) => {
+                      const s = root.sections.value.find(s => s.id === sectionId);
+                      return s ? `${companyName(s.companyId)} / ${s.name}` : '';
+                  };
                   const aboutInput = ref(root.aboutText.value);
                   watch(root.aboutText, v => (aboutInput.value = v));
                   const defaultStartInput = ref(root.defaultStart.value);
@@ -717,53 +809,83 @@
                   const categoryGoalsInput = ref({ ...root.categoryGoals.value });
                   watch(root.categoryGoals, v => (categoryGoalsInput.value = { ...v }));
 
-                  const editingDeptId = ref(null);
-                  const editingDeptName = ref('');
+                  const editingCompanyId = ref(null);
+                  const editingCompanyName = ref('');
+                  const editingSectionId = ref(null);
+                  const editingSectionName = ref('');
+                  const editingSectionCompanyId = ref('');
                   const editingNameId = ref(null);
                   const editingNameName = ref('');
+                  const editingNameSectionId = ref('');
                   const editingCategoryId = ref(null);
                   const editingCategoryName = ref('');
 
-                  const addDepartment = async () => {
-                      if (!newDepartment.value) return;
-                      await root.addDepartment(newDepartment.value);
-                      newDepartment.value = '';
+                  const addCompany = async () => {
+                      if (!newCompany.value) return;
+                      await root.addCompany(newCompany.value);
+                      newCompany.value = '';
+                  };
+                  const startCompanyEdit = (co) => {
+                      editingCompanyId.value = co.id;
+                      editingCompanyName.value = co.name || co;
+                  };
+                  const cancelCompanyEdit = () => {
+                      editingCompanyId.value = null;
+                      editingCompanyName.value = '';
+                  };
+                  const saveCompany = async (id) => {
+                      if (!editingCompanyName.value) return;
+                      await root.updateCompany(id, editingCompanyName.value);
+                      cancelCompanyEdit();
+                  };
+                  const removeCompany = async (id) => {
+                      if (!confirm('削除しますか？')) return;
+                      await root.deleteCompany(id);
                   };
 
-                  const startDepartmentEdit = (d) => {
-                      editingDeptId.value = d.id;
-                      editingDeptName.value = d.name || d;
+                  const addSection = async () => {
+                      if (!newSectionName.value || !newSectionCompanyId.value) return;
+                      await root.addSection(newSectionName.value, newSectionCompanyId.value);
+                      newSectionName.value = '';
                   };
-                  const cancelDepartmentEdit = () => {
-                      editingDeptId.value = null;
-                      editingDeptName.value = '';
+                  const startSectionEdit = (s) => {
+                      editingSectionId.value = s.id;
+                      editingSectionName.value = s.name || s;
+                      editingSectionCompanyId.value = s.companyId;
                   };
-                  const saveDepartment = async (id) => {
-                      if (!editingDeptName.value) return;
-                      await root.updateDepartment(id, editingDeptName.value);
-                      cancelDepartmentEdit();
+                  const cancelSectionEdit = () => {
+                      editingSectionId.value = null;
+                      editingSectionName.value = '';
+                      editingSectionCompanyId.value = '';
                   };
-                  const removeDepartment = async (id) => {
+                  const saveSection = async (id) => {
+                      if (!editingSectionName.value || !editingSectionCompanyId.value) return;
+                      await root.updateSection(id, editingSectionName.value, editingSectionCompanyId.value);
+                      cancelSectionEdit();
+                  };
+                  const removeSection = async (id) => {
                       if (!confirm('削除しますか？')) return;
-                      await root.deleteDepartment(id);
+                      await root.deleteSection(id);
                   };
 
                   const addName = async () => {
-                      if (!newName.value) return;
-                      await root.addName(newName.value);
+                      if (!newName.value || !newNameSectionId.value) return;
+                      await root.addName(newName.value, newNameSectionId.value);
                       newName.value = '';
                   };
                   const startNameEdit = (n) => {
                       editingNameId.value = n.id;
                       editingNameName.value = n.name || n;
+                      editingNameSectionId.value = n.sectionId;
                   };
                   const cancelNameEdit = () => {
                       editingNameId.value = null;
                       editingNameName.value = '';
+                      editingNameSectionId.value = '';
                   };
                   const saveName = async (id) => {
-                      if (!editingNameName.value) return;
-                      await root.updateName(id, editingNameName.value);
+                      if (!editingNameName.value || !editingNameSectionId.value) return;
+                      await root.updateName(id, editingNameName.value, editingNameSectionId.value);
                       cancelNameEdit();
                   };
                   const removeName = async (id) => {
@@ -773,8 +895,8 @@
 
                   const importNamesCsv = async () => {
                       const file = namesFile.value?.files[0];
-                      if (!file) return;
-                      await root.importNames(file);
+                      if (!file || !csvSectionId.value) return;
+                      await root.importNames(file, csvSectionId.value);
                       namesFile.value.value = '';
                   };
 
@@ -813,25 +935,40 @@
 
                   return {
                       root,
-                      newDepartment,
+                      newCompany,
+                      newSectionName,
+                      newSectionCompanyId,
                       newName,
+                      newNameSectionId,
+                      csvSectionId,
                       namesFile,
                       newCategory,
                       aboutInput,
                       defaultStartInput,
                       defaultEndInput,
                       categoryGoalsInput,
-                      editingDeptId,
-                      editingDeptName,
+                      companyName,
+                      sectionLabel,
+                      editingCompanyId,
+                      editingCompanyName,
+                      editingSectionId,
+                      editingSectionName,
+                      editingSectionCompanyId,
                       editingNameId,
                       editingNameName,
+                      editingNameSectionId,
                       editingCategoryId,
                       editingCategoryName,
-                      addDepartment,
-                      startDepartmentEdit,
-                      cancelDepartmentEdit,
-                      saveDepartment,
-                      removeDepartment,
+                      addCompany,
+                      startCompanyEdit,
+                      cancelCompanyEdit,
+                      saveCompany,
+                      removeCompany,
+                      addSection,
+                      startSectionEdit,
+                      cancelSectionEdit,
+                      saveSection,
+                      removeSection,
                       addName,
                       startNameEdit,
                       cancelNameEdit,
@@ -882,7 +1019,8 @@
                 const loginPassword = ref('');
 
                 const initiatives = ref([]);
-                const departments = ref([]);
+                const companies = ref([]);
+                const sections = ref([]);
                 const names = ref([]);
                 const categories = ref([]);
                 const aboutText = ref('');
@@ -892,7 +1030,7 @@
                 const filterStart = ref('');
                 const filterEnd = ref('');
 
-                // ログイン中ユーザーのプロフィール（氏名・部門、新規登録の初期値に使う）。
+                // ログイン中ユーザーのプロフィール（氏名。新規登録の初期値に使う）。
                 // users/{uid} はアカウント作成時に管理者スクリプト(tools/manage_users.py)が書き込む。
                 const myProfileDoc = ref(null);
                 const myProfile = computed(() => myProfileDoc.value);
@@ -968,15 +1106,17 @@
                             if (!filterStart.value) filterStart.value = defaultStart.value;
                             if (!filterEnd.value) filterEnd.value = defaultEnd.value;
 
-                            const [inits, deps, nms, cats, profileSnap] = await Promise.all([
+                            const [inits, cos, secs, nms, cats, profileSnap] = await Promise.all([
                                 queryInitiatives(filterStart.value, filterEnd.value),
-                                loadCollection('departments'),
+                                loadCollection('companies'),
+                                loadCollection('sections'),
                                 loadCollection('names'),
                                 loadCollection('categories'),
                                 user.value ? getDoc(doc(db, 'users', user.value.uid)) : null,
                             ]);
                             initiatives.value = inits;
-                            departments.value = deps;
+                            companies.value = cos;
+                            sections.value = secs;
                             names.value = nms;
                             categories.value = cats;
                             myProfileDoc.value = profileSnap && profileSnap.exists() ? profileSnap.data() : null;
@@ -996,12 +1136,22 @@
                     });
                 };
 
-                const fetchDepartments = async () => {
+                const fetchCompanies = async () => {
                     await withLoading(async () => {
                         try {
-                            departments.value = await loadCollection('departments');
+                            companies.value = await loadCollection('companies');
                         } catch (error) {
-                            console.error('Error fetching departments:', error);
+                            console.error('Error fetching companies:', error);
+                        }
+                    });
+                };
+
+                const fetchSections = async () => {
+                    await withLoading(async () => {
+                        try {
+                            sections.value = await loadCollection('sections');
+                        } catch (error) {
+                            console.error('Error fetching sections:', error);
                         }
                     });
                 };
@@ -1067,8 +1217,9 @@
                 };
 
                 const pickInitiative = (data) => ({
-                    department: data.department,
                     name: data.name,
+                    company: data.company,
+                    section: data.section,
                     title: data.title,
                     date: data.date,
                     category: data.category,
@@ -1113,15 +1264,20 @@
                     });
                 };
 
-                // --- マスタ (部門・氏名・分類) 共通処理 ---
-                const addMasterItem = async (colName, name, listRef, refetch) => {
+                // --- マスタ (社・課・氏名・分類) 共通処理 ---
+                // scopeKey を指定すると、その項目が同じ場合のみ name の重複とみなす
+                // （例: 課は同じ社の中でのみ重複禁止、氏名は同じ課の中でのみ重複禁止）。
+                const addMasterItem = async (colName, data, listRef, refetch, scopeKey) => {
                     await withLoading(async () => {
                         try {
-                            if (listRef.value.some(item => item.name === name)) {
-                                alert('既に登録されています: ' + name);
+                            const dup = listRef.value.some(item =>
+                                item.name === data.name && (!scopeKey || item[scopeKey] === data[scopeKey])
+                            );
+                            if (dup) {
+                                alert('既に登録されています: ' + data.name);
                                 return;
                             }
-                            await addDoc(colRef(colName), { name });
+                            await addDoc(colRef(colName), data);
                             await refetch();
                         } catch (error) {
                             console.error(`Error adding to ${colName}:`, error);
@@ -1129,10 +1285,10 @@
                     });
                 };
 
-                const updateMasterItem = async (colName, id, name, refetch) => {
+                const updateMasterItem = async (colName, id, data, refetch) => {
                     await withLoading(async () => {
                         try {
-                            await updateDoc(doc(db, colName, id), { name });
+                            await updateDoc(doc(db, colName, id), data);
                             await refetch();
                         } catch (error) {
                             console.error(`Error updating ${colName}:`, error);
@@ -1151,23 +1307,42 @@
                     });
                 };
 
-                const addDepartment = (name) => addMasterItem('departments', name, departments, fetchDepartments);
-                const updateDepartment = (id, name) => updateMasterItem('departments', id, name, fetchDepartments);
-                const deleteDepartment = (id) => deleteMasterItem('departments', id, fetchDepartments);
+                const addCompany = (name) => addMasterItem('companies', { name }, companies, fetchCompanies);
+                const updateCompany = (id, name) => updateMasterItem('companies', id, { name }, fetchCompanies);
+                const deleteCompany = (id) => {
+                    if (sections.value.some(s => s.companyId === id)) {
+                        alert('この社に属する課が存在するため削除できません。先に課を削除してください。');
+                        return;
+                    }
+                    return deleteMasterItem('companies', id, fetchCompanies);
+                };
 
-                const addName = (name) => addMasterItem('names', name, names, fetchNames);
-                const updateName = (id, name) => updateMasterItem('names', id, name, fetchNames);
+                const addSection = (name, companyId) => addMasterItem('sections', { name, companyId }, sections, fetchSections, 'companyId');
+                const updateSection = (id, name, companyId) => updateMasterItem('sections', id, { name, companyId }, fetchSections);
+                const deleteSection = (id) => {
+                    if (names.value.some(n => n.sectionId === id)) {
+                        alert('この課に属する氏名が存在するため削除できません。先に氏名を削除するか、別の課に変更してください。');
+                        return;
+                    }
+                    return deleteMasterItem('sections', id, fetchSections);
+                };
+
+                const addName = (name, sectionId) => addMasterItem('names', { name, sectionId }, names, fetchNames, 'sectionId');
+                const updateName = (id, name, sectionId) => updateMasterItem('names', id, { name, sectionId }, fetchNames);
                 const deleteName = (id) => deleteMasterItem('names', id, fetchNames);
 
-                const addCategory = (name) => addMasterItem('categories', name, categories, fetchCategories);
-                const updateCategory = (id, name) => updateMasterItem('categories', id, name, fetchCategories);
+                const addCategory = (name) => addMasterItem('categories', { name }, categories, fetchCategories);
+                const updateCategory = (id, name) => updateMasterItem('categories', id, { name }, fetchCategories);
                 const deleteCategory = (id) => deleteMasterItem('categories', id, fetchCategories);
 
-                const importNames = async (file) => {
+                const importNames = async (file, sectionId) => {
                     await withLoading(async () => {
                         try {
                             const text = (await file.text()).replace(/^﻿/, '');
-                            const existing = new Set(names.value.map(n => n.name));
+                            // 同じ課の中でのみ重複とみなす
+                            const existing = new Set(
+                                names.value.filter(n => n.sectionId === sectionId).map(n => n.name)
+                            );
                             const toAdd = [];
                             text.split(/\r?\n/).forEach(line => {
                                 if (!line.trim()) return;
@@ -1182,7 +1357,7 @@
                             for (let i = 0; i < toAdd.length; i += 450) {
                                 const batch = writeBatch(db);
                                 toAdd.slice(i, i + 450).forEach(name => {
-                                    batch.set(doc(colRef('names')), { name });
+                                    batch.set(doc(colRef('names')), { name, sectionId });
                                 });
                                 await batch.commit();
                             }
@@ -1242,7 +1417,8 @@
                         await fetchBootstrap();
                     } else {
                         initiatives.value = [];
-                        departments.value = [];
+                        companies.value = [];
+                        sections.value = [];
                         names.value = [];
                         categories.value = [];
                         myProfileDoc.value = null;
@@ -1252,7 +1428,8 @@
                 // Provide shared state and methods to all components
                   provide('root', {
                       initiatives,
-                      departments,
+                      companies,
+                      sections,
                       names,
                       categories,
                       aboutText,
@@ -1265,15 +1442,19 @@
                       submitInitiative,
                       updateInitiative,
                       deleteInitiative,
-                      fetchDepartments,
+                      fetchCompanies,
+                      fetchSections,
                       fetchNames,
                       fetchCategories,
-                      addDepartment,
+                      addCompany,
+                      addSection,
                       addName,
                       importNames,
                       addCategory,
-                      updateDepartment,
-                      deleteDepartment,
+                      updateCompany,
+                      deleteCompany,
+                      updateSection,
+                      deleteSection,
                       updateName,
                       deleteName,
                       updateCategory,
