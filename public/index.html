@@ -29,10 +29,6 @@
             border-bottom: 1px solid #dee2e6;
             font-weight: 500;
         }
-        .kpi-card .card-body {
-            font-size: 2.2rem;
-            font-weight: 700;
-        }
         .btn-primary {
             background-color: #0d6efd;
             border: none;
@@ -46,10 +42,6 @@
         }
         .th-sortable:hover {
             background-color: #f8f9fa;
-        }
-        .chart-container {
-            position: relative;
-            height: 300px;
         }
         .fade-enter-active, .fade-leave-active {
             transition: opacity 0.3s ease;
@@ -98,13 +90,10 @@
                 <div class="offcanvas-body">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <router-link to="/" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-graph-up-arrow me-2"></i>ダッシュボード</router-link>
+                            <router-link to="/" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                         </li>
                         <li class="nav-item">
                             <router-link to="/form" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
-                        </li>
-                        <li class="nav-item">
-                            <router-link to="/list" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                         </li>
                         <li class="nav-item">
                             <router-link to="/about" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-info-circle me-2"></i>業績アップ活動とは</router-link>
@@ -122,7 +111,7 @@
                     <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav" aria-controls="offcanvasNav">
                         <i class="bi bi-list"></i>
                     </button>
-                    <router-link v-if="$route.path.startsWith('/form')" to="/list" class="btn btn-outline-secondary btn-sm ms-2">
+                    <router-link v-if="$route.path.startsWith('/form')" to="/" class="btn btn-outline-secondary btn-sm ms-2">
                         <i class="bi bi-arrow-left me-1"></i>一覧に戻る
                     </router-link>
                     <a class="navbar-brand mx-auto" href="#">
@@ -173,11 +162,9 @@
         </div>
     </div>
 
-    <!-- Vue.js, Vue Router, Chart.js, Bootstrap JS from CDN -->
+    <!-- Vue.js, Vue Router, Bootstrap JS from CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Tom Select JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
@@ -196,106 +183,6 @@
             <div :class="`col-md-${buttonCol} d-flex align-items-end`">
                 <button class="btn btn-primary me-2" @click="root.fetchInitiatives()">適用</button>
                 <button class="btn btn-secondary" @click="reset">リセット</button>
-            </div>
-        </div>
-    </script>
-
-    <script type="text/x-template" id="dashboard-template">
-        <div>
-            <!-- 新規登録ボタン -->
-            <div class="d-flex justify-content-end mb-3">
-                <router-link to="/form" class="btn btn-primary">
-                    <i class="bi bi-plus-lg me-1"></i>新規登録
-                </router-link>
-            </div>
-
-            <!-- Date Filters -->
-            <date-filter></date-filter>
-
-            <!-- 目標達成率 -->
-            <div class="row">
-                <div class="col-12 mb-4">
-                    <div class="card">
-                        <div class="card-header">目標達成率</div>
-                        <div class="card-body">
-                            <div v-for="c in root.categories.value" :key="c.id" class="mb-4">
-                                <div class="d-flex justify-content-between">
-                                    <strong>{{ c.name }}</strong>
-                                    <span v-if="root.categoryGoals.value[c.name] > 0" class="text-muted">目標 ¥{{ formatCurrency(root.categoryGoals.value[c.name]) }}</span>
-                                </div>
-
-                                <div class="d-flex justify-content-between small mt-2">
-                                    <span>実績: ¥{{ formatCurrency(categorySummary[c.name] || 0) }}</span>
-                                    <span v-if="root.categoryGoals.value[c.name] > 0">{{ ((categorySummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100).toFixed(1) }}%</span>
-                                </div>
-                                <div class="progress" style="height: 14px;">
-                                    <div class="progress-bar" :style="{
-                                        width: (root.categoryGoals.value[c.name] > 0 ? Math.min((categorySummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100, 100) : 0) + '%',
-                                        backgroundColor: root.categoryColorMap.value[c.name]
-                                    }"></div>
-                                </div>
-
-                                <div class="d-flex justify-content-between small mt-2 text-muted">
-                                    <span>見込み: ¥{{ formatCurrency(categoryForecastSummary[c.name] || 0) }}</span>
-                                    <span v-if="root.categoryGoals.value[c.name] > 0">{{ ((categoryForecastSummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100).toFixed(1) }}%</span>
-                                </div>
-                                <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar" :style="{
-                                        width: (root.categoryGoals.value[c.name] > 0 ? Math.min((categoryForecastSummary[c.name] || 0) / root.categoryGoals.value[c.name] * 100, 100) : 0) + '%',
-                                        backgroundColor: root.categoryColorMap.value[c.name],
-                                        opacity: 0.4
-                                    }"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- KPI Cards -->
-            <div class="row">
-                <div class="col-md-6 mb-4">
-                    <div class="card text-center">
-                        <div class="card-header bg-success text-white">合計貢献金額</div>
-                        <div class="card-body kpi-card">
-                            ¥{{ formatCurrency(totalAmount) }}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card text-center">
-                        <div class="card-header bg-info text-white">総件数</div>
-                        <div class="card-body kpi-card">
-                            {{ root.initiatives.value.length }} 件
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="row">
-                <div class="col-lg-4 mb-4" v-for="c in root.categories.value" :key="c.id">
-                    <div class="card">
-                        <div class="card-header">{{ c.name }}（部門別内訳）</div>
-                        <div class="card-body">
-                            <div class="chart-container">
-                                <canvas :ref="el => setCategoryPieRef(c.id, el)"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12 mb-4">
-                    <div class="card">
-                        <div class="card-header">部門別 金額</div>
-                        <div class="card-body">
-                            <div class="chart-container">
-                                <canvas ref="departmentChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </script>
@@ -592,14 +479,8 @@
             connectFirestoreEmulator(db, location.hostname, 8080);
         }
 
-        if (window.ChartDataLabels) {
-            Chart.register(ChartDataLabels);
-        } else {
-            console.warn('chartjs-plugin-datalabels が読み込まれていません。');
-        }
         const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount, toRefs } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
-        const colorPalette = ['#0d6efd', '#dc3545', '#28a745', '#ffc107', '#6f42c1', '#d63384', '#fd7e14', '#198754', '#0dcaf0'];
 
         const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'ja');
         const SETTINGS_REF = () => doc(db, 'settings', 'app');
@@ -607,150 +488,6 @@
         const DEFAULT_CATEGORIES = ['粗利率改善', '固定費コントロール', '粗利額アップ'];
 
         // --- Components ---
-        const Dashboard = {
-            template: '#dashboard-template',
-            setup() {
-                const root = inject('root');
-                const departmentChart = ref(null);
-                let departmentChartInstance = null;
-                const categoryPieRefs = ref({});
-                const categoryPieInstances = {};
-
-                const setCategoryPieRef = (id, el) => {
-                    if (el) categoryPieRefs.value[id] = el;
-                };
-
-                const totalAmount = root.totalAmount;
-
-                const categorySummary = computed(() => {
-                    const summary = {};
-                    root.initiatives.value.forEach(item => {
-                        if (!summary[item.category]) summary[item.category] = 0;
-                        summary[item.category] += item.actualAmount;
-                    });
-                    return summary;
-                });
-
-                // 見込み金額 = 実績が未確定(0)の取り組みは見込み金額を、
-                // 実績が確定している取り組みは実績金額を積み上げて算出する
-                // (実績確定分を見込みに二重計上しないため)
-                const categoryForecastSummary = computed(() => {
-                    const summary = {};
-                    root.initiatives.value.forEach(item => {
-                        if (!summary[item.category]) summary[item.category] = 0;
-                        summary[item.category] += item.actualAmount > 0 ? item.actualAmount : item.forecastAmount;
-                    });
-                    return summary;
-                });
-
-                const departmentCategorySummary = computed(() => {
-                    const summary = {};
-                    root.initiatives.value.forEach(item => {
-                        if (!summary[item.department]) summary[item.department] = {};
-                        if (!summary[item.department][item.category]) summary[item.department][item.category] = 0;
-                        summary[item.department][item.category] += item.actualAmount;
-                    });
-                    return summary;
-                });
-
-                const renderDepartmentChart = () => {
-                    if (!departmentChart.value) return;
-                    const labels = Object.keys(departmentCategorySummary.value);
-                    const categoriesList = root.categories.value.map(c => c.name);
-                    const datasets = categoriesList.map(cat => ({
-                        label: cat,
-                        data: labels.map(dept => (departmentCategorySummary.value[dept][cat] || 0)),
-                        backgroundColor: root.categoryColorMap.value[cat]
-                    }));
-                    if (!departmentChartInstance) {
-                        departmentChartInstance = new Chart(departmentChart.value.getContext('2d'), {
-                            type: 'bar',
-                            data: { labels, datasets },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: { x: { stacked: true }, y: { stacked: true } },
-                                plugins: {
-                                    legend: { position: 'top' },
-                                    datalabels: {
-                                        formatter: (value, ctx) => {
-                                            const idx = ctx.dataIndex;
-                                            const total = ctx.chart.data.datasets.reduce((sum, d) => sum + d.data[idx], 0);
-                                            return total ? (value / total * 100).toFixed(1) + '%' : '';
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    } else {
-                        departmentChartInstance.data.labels = labels;
-                        departmentChartInstance.data.datasets = datasets;
-                        departmentChartInstance.update();
-                    }
-                };
-
-                const renderCategoryPies = () => {
-                    const departments = Object.keys(departmentCategorySummary.value);
-                    root.categories.value.forEach(c => {
-                        const canvas = categoryPieRefs.value[c.id];
-                        if (!canvas) return;
-                        const data = departments.map(dept => departmentCategorySummary.value[dept][c.name] || 0);
-                        const colors = departments.map((dept, idx) => colorPalette[idx % colorPalette.length]);
-                        if (!categoryPieInstances[c.id]) {
-                            categoryPieInstances[c.id] = new Chart(canvas.getContext('2d'), {
-                                type: 'pie',
-                                data: {
-                                    labels: departments,
-                                    datasets: [{ data, backgroundColor: colors }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: { position: 'top' },
-                                        datalabels: {
-                                            formatter: (value, ctx) => {
-                                                const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                                return total ? (value / total * 100).toFixed(1) + '%' : '';
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                        } else {
-                            const inst = categoryPieInstances[c.id];
-                            inst.data.labels = departments;
-                            inst.data.datasets[0].data = data;
-                            inst.data.datasets[0].backgroundColor = colors;
-                            inst.update();
-                        }
-                    });
-                };
-
-                onMounted(() => {
-                    renderDepartmentChart();
-                    renderCategoryPies();
-                });
-                watch(root.initiatives, () => {
-                    renderDepartmentChart();
-                    renderCategoryPies();
-                });
-                // 分類マスタの読み込みタイミングによって円グラフ用canvasが後から追加されるため、
-                // DOM更新後(flush: 'post')に描画する
-                watch(() => root.categories.value.map(c => c.id).join(','), () => renderCategoryPies(), { flush: 'post' });
-                onBeforeUnmount(() => {
-                    if (departmentChartInstance) departmentChartInstance.destroy();
-                    Object.values(categoryPieInstances).forEach(inst => inst.destroy());
-                });
-
-                return {
-                    root, totalAmount, formatCurrency: root.formatCurrency,
-                    departmentChart, categorySummary, categoryForecastSummary,
-                    setCategoryPieRef,
-                };
-            }
-        };
-
         const InitiativeForm = {
             template: '#initiative-form-template',
             setup() {
@@ -845,14 +582,14 @@
                     } else {
                         await root.submitInitiative(newInitiative.value);
                     }
-                    await router.push('/list');
+                    await router.push('/');
                 };
 
                 const remove = async () => {
                     if (!isEdit.value) return;
                     if (!confirm('本当に削除しますか？')) return;
                     await root.deleteInitiative(route.params.id);
-                    await router.push('/list');
+                    await router.push('/');
                 };
 
                 return { newInitiative, submit, isEdit, remove, root, forecastAmountInput, actualAmountInput, handleForecastAmountInput, handleActualAmountInput };
@@ -1123,9 +860,9 @@
 
         // --- Router ---
         const routes = [
-            { path: '/', component: Dashboard },
+            { path: '/', component: InitiativeList },
+            { path: '/list', redirect: '/' },
             { path: '/form/:id?', component: InitiativeForm },
-            { path: '/list', component: InitiativeList },
             { path: '/about', component: About },
             { path: '/settings', component: Settings },
         ];
@@ -1154,18 +891,6 @@
                 const defaultEnd = ref('');
                 const filterStart = ref('');
                 const filterEnd = ref('');
-
-                const categoryColorMap = computed(() => {
-                    const map = {};
-                    categories.value.forEach((c, idx) => {
-                        map[c.name] = colorPalette[idx % colorPalette.length];
-                    });
-                    return map;
-                });
-
-                const totalAmount = computed(() =>
-                    initiatives.value.reduce((sum, item) => sum + item.actualAmount, 0)
-                );
 
                 // ログイン中ユーザーのプロフィール（氏名・部門、新規登録の初期値に使う）。
                 // users/{uid} はアカウント作成時に管理者スクリプト(tools/manage_users.py)が書き込む。
@@ -1559,8 +1284,6 @@
                       formatCurrency,
                       getCategoryClass,
                       isLoading,
-                      categoryColorMap,
-                      totalAmount,
                       myProfile
                   });
 
