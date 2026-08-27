@@ -5,11 +5,13 @@ service cloud.firestore {
     // アカウントは管理者が tools/manage_users.py で事前作成するため、
     // セルフサインアップは無く外部の人間がアカウントを作ることはできない。
 
-    // ログインユーザー自身のプロフィール（氏名・部門）。
-    // 管理者のアカウント作成スクリプト (Admin SDK) からのみ書き込まれる。
+    // ログインユーザー自身のプロフィール（氏名）。
+    // 読み取りは本人のみ。書き込みは、設定画面の「氏名」からログインアカウントを
+    // 作成する際にクライアントから書き込まれるため、他のマスタと同じく認証済みなら誰でも可とする
+    // （管理者スクリプト tools/manage_users.py は Admin SDK 経由でこのルールをバイパスする）。
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false;
+      allow write: if request.auth != null;
     }
 
     // 社・課・氏名マスタ（社→課→氏名の階層）は自前で保有し、

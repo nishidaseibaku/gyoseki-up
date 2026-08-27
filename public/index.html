@@ -97,9 +97,6 @@
                             <router-link to="/form" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
                         </li>
                         <li class="nav-item">
-                            <router-link to="/about" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-info-circle me-2"></i>業績アップ活動とは</router-link>
-                        </li>
-                        <li class="nav-item">
                             <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
                         </li>
                     </ul>
@@ -323,11 +320,6 @@
         <div>
             <h3 class="mb-3">設定</h3>
             <div class="mb-4">
-                <label for="aboutText" class="form-label">業績アップ活動の説明</label>
-                <textarea id="aboutText" class="form-control mb-2" rows="3" v-model="aboutInput"></textarea>
-                <button class="btn btn-primary" @click="saveAbout" :disabled="root.isLoading.value">保存</button>
-            </div>
-            <div class="mb-4">
                 <label class="form-label">デフォルト期間</label>
                 <div class="row g-2">
                     <div class="col"><input type="date" class="form-control" v-model="defaultStartInput"></div>
@@ -419,18 +411,24 @@
                 </h2>
                 <div id="collapseName" class="accordion-collapse collapse" aria-labelledby="headingName" data-bs-parent="#settingsAccordion">
                     <div class="accordion-body">
-                        <ul class="list-group mb-2">
+                        <ul class="list-group mb-3">
                             <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
                                 <template v-if="editingNameId === n.id">
-                                    <select class="form-select me-2" style="max-width: 220px;" v-model="editingNameSectionId">
-                                        <option v-for="s in root.sections.value" :key="s.id" :value="s.id">{{ companyName(s.companyId) }} / {{ s.name }}</option>
+                                    <select class="form-select me-2" style="max-width: 160px;" v-model="editingNameCompanyId" @change="editingNameSectionId = (sectionsOf(editingNameCompanyId)[0]?.id || '')">
+                                        <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
+                                    </select>
+                                    <select class="form-select me-2" style="max-width: 160px;" v-model="editingNameSectionId">
+                                        <option v-for="s in sectionsOf(editingNameCompanyId)" :key="s.id" :value="s.id">{{ s.name }}</option>
                                     </select>
                                     <clearable-input type="text" class="form-control me-2" v-model="editingNameName"></clearable-input>
                                     <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading.value">保存</button>
                                     <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading.value">キャンセル</button>
                                 </template>
                                 <template v-else>
-                                    <span class="me-auto">{{ n.name || n }} <span class="text-muted">（{{ sectionLabel(n.sectionId) }}）</span></span>
+                                    <span class="me-auto">
+                                        {{ n.name || n }} <span class="text-muted">（{{ sectionLabel(n.sectionId) }}）</span>
+                                        <span v-if="n.username" class="badge bg-secondary ms-1">ログイン: {{ n.username }}</span>
+                                    </span>
                                     <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading.value">編集</button>
                                     <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
                                 </template>
@@ -438,19 +436,56 @@
                             <li class="list-group-item text-muted" v-if="root.names.value.length === 0">氏名が登録されていません。下のフォームから追加してください。</li>
                         </ul>
                         <template v-if="root.sections.value.length > 0">
-                            <form class="d-flex mb-2" @submit.prevent="addName">
-                                <select class="form-select me-2" style="max-width: 220px;" v-model="newNameSectionId">
-                                    <option v-for="s in root.sections.value" :key="s.id" :value="s.id">{{ companyName(s.companyId) }} / {{ s.name }}</option>
-                                </select>
-                                <clearable-input type="text" class="form-control me-2" v-model="newName" placeholder="追加..."></clearable-input>
-                                <button class="btn btn-primary" :disabled="root.isLoading.value">追加</button>
+                            <form class="border rounded p-3 mb-3" @submit.prevent="addName">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">社</label>
+                                        <select class="form-select" v-model="newNameCompanyId">
+                                            <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">課</label>
+                                        <select class="form-select" v-model="newNameSectionId">
+                                            <option v-for="s in sectionsOf(newNameCompanyId)" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">氏名</label>
+                                        <clearable-input type="text" class="form-control" v-model="newName" placeholder="氏名"></clearable-input>
+                                    </div>
+                                </div>
+                                <div class="row g-2 mt-1">
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">ログインユーザー名（任意）</label>
+                                        <clearable-input type="text" class="form-control" v-model="newNameUsername" placeholder="未入力ならログイン不可"></clearable-input>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small mb-1">パスワード（任意）</label>
+                                        <input type="password" class="form-control" v-model="newNamePassword" placeholder="6文字以上" autocomplete="new-password">
+                                    </div>
+                                </div>
+                                <div v-if="newNameError" class="alert alert-danger py-2 mb-0 mt-3" style="font-size: .85rem;">{{ newNameError }}</div>
+                                <button type="submit" class="btn btn-primary mt-3" :disabled="root.isLoading.value">追加</button>
                             </form>
-                            <form class="d-flex" @submit.prevent="importNamesCsv">
-                                <select class="form-select me-2" style="max-width: 220px;" v-model="csvSectionId">
-                                    <option v-for="s in root.sections.value" :key="s.id" :value="s.id">{{ companyName(s.companyId) }} / {{ s.name }}</option>
-                                </select>
-                                <input type="file" accept=".csv,text/csv" class="form-control me-2" ref="namesFile">
-                                <button class="btn btn-outline-primary text-nowrap" :disabled="root.isLoading.value">CSVから追加</button>
+                            <form class="border rounded p-3" @submit.prevent="importNamesCsv">
+                                <label class="form-label small mb-1">CSVから一括追加</label>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <select class="form-select" v-model="csvCompanyId">
+                                            <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select class="form-select" v-model="csvSectionId">
+                                            <option v-for="s in sectionsOf(csvCompanyId)" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="file" accept=".csv,text/csv" class="form-control" ref="namesFile">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-outline-primary mt-3" :disabled="root.isLoading.value">CSVから追加</button>
                             </form>
                         </template>
                         <p class="text-muted mb-0" style="font-size: .85rem;" v-else>氏名を追加するには、先に「課」を登録してください。</p>
@@ -490,19 +525,11 @@
         </div>
     </script>
 
-    <script type="text/x-template" id="about-template">
-        <div class="card">
-            <div class="card-header">業績アップ活動とは</div>
-            <div class="card-body">
-                <p style="white-space: pre-wrap;">{{ root.aboutText.value }}</p>
-            </div>
-        </div>
-    </script>
-
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import {
-            getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, connectAuthEmulator
+            getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+            onAuthStateChanged, signOut, connectAuthEmulator
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import {
             getFirestore, collection, doc, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
@@ -540,7 +567,6 @@
 
         const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'ja');
         const SETTINGS_REF = () => doc(db, 'settings', 'app');
-        const DEFAULT_ABOUT = '業績アップ活動とは、売上の向上やコスト削減など会社の収益性を高めるための取り組みの総称です。';
         const DEFAULT_CATEGORIES = ['粗利率改善', '固定費コントロール', '粗利額アップ'];
 
         // --- Components ---
@@ -782,26 +808,38 @@
                   const newSectionName = ref('');
                   const newSectionCompanyId = ref('');
                   const newName = ref('');
+                  const newNameCompanyId = ref('');
                   const newNameSectionId = ref('');
+                  const newNameUsername = ref('');
+                  const newNamePassword = ref('');
+                  const newNameError = ref('');
+                  const csvCompanyId = ref('');
                   const csvSectionId = ref('');
                   const namesFile = ref(null);
                   const newCategory = ref('');
-
-                  watch(root.companies, (list) => {
-                      if (!newSectionCompanyId.value && list.length) newSectionCompanyId.value = list[0].id;
-                  }, { immediate: true });
-                  watch(root.sections, (list) => {
-                      if (!newNameSectionId.value && list.length) newNameSectionId.value = list[0].id;
-                      if (!csvSectionId.value && list.length) csvSectionId.value = list[0].id;
-                  }, { immediate: true });
 
                   const companyName = (companyId) => root.companies.value.find(co => co.id === companyId)?.name || '';
                   const sectionLabel = (sectionId) => {
                       const s = root.sections.value.find(s => s.id === sectionId);
                       return s ? `${companyName(s.companyId)} / ${s.name}` : '';
                   };
-                  const aboutInput = ref(root.aboutText.value);
-                  watch(root.aboutText, v => (aboutInput.value = v));
+                  // 指定した社に属する課だけを返す（氏名追加フォームの「社→課」の絞り込みに使う）
+                  const sectionsOf = (companyId) => root.sections.value.filter(s => s.companyId === companyId);
+
+                  watch(root.companies, (list) => {
+                      if (!newSectionCompanyId.value && list.length) newSectionCompanyId.value = list[0].id;
+                      if (!newNameCompanyId.value && list.length) newNameCompanyId.value = list[0].id;
+                      if (!csvCompanyId.value && list.length) csvCompanyId.value = list[0].id;
+                  }, { immediate: true });
+                  // 社の選択が変わったら、その社の課の先頭を自動選択し直す
+                  watch(newNameCompanyId, (companyId) => {
+                      const opts = sectionsOf(companyId);
+                      newNameSectionId.value = opts.length ? opts[0].id : '';
+                  });
+                  watch(csvCompanyId, (companyId) => {
+                      const opts = sectionsOf(companyId);
+                      csvSectionId.value = opts.length ? opts[0].id : '';
+                  });
                   const defaultStartInput = ref(root.defaultStart.value);
                   watch(root.defaultStart, v => (defaultStartInput.value = v));
                   const defaultEndInput = ref(root.defaultEnd.value);
@@ -816,6 +854,7 @@
                   const editingSectionCompanyId = ref('');
                   const editingNameId = ref(null);
                   const editingNameName = ref('');
+                  const editingNameCompanyId = ref('');
                   const editingNameSectionId = ref('');
                   const editingCategoryId = ref(null);
                   const editingCategoryName = ref('');
@@ -870,17 +909,35 @@
 
                   const addName = async () => {
                       if (!newName.value || !newNameSectionId.value) return;
-                      await root.addName(newName.value, newNameSectionId.value);
-                      newName.value = '';
+                      if (newNameUsername.value && !newNamePassword.value) {
+                          newNameError.value = 'パスワードを入力してください。';
+                          return;
+                      }
+                      if (!newNameUsername.value && newNamePassword.value) {
+                          newNameError.value = 'ユーザー名を入力してください。';
+                          return;
+                      }
+                      newNameError.value = '';
+                      const result = await root.addNameWithLogin(newName.value, newNameSectionId.value, newNameUsername.value, newNamePassword.value);
+                      if (result.ok) {
+                          newName.value = '';
+                          newNameUsername.value = '';
+                          newNamePassword.value = '';
+                      } else {
+                          newNameError.value = result.message || '追加に失敗しました。';
+                      }
                   };
                   const startNameEdit = (n) => {
                       editingNameId.value = n.id;
                       editingNameName.value = n.name || n;
                       editingNameSectionId.value = n.sectionId;
+                      const sec = root.sections.value.find(s => s.id === n.sectionId);
+                      editingNameCompanyId.value = sec ? sec.companyId : '';
                   };
                   const cancelNameEdit = () => {
                       editingNameId.value = null;
                       editingNameName.value = '';
+                      editingNameCompanyId.value = '';
                       editingNameSectionId.value = '';
                   };
                   const saveName = async (id) => {
@@ -923,9 +980,6 @@
                       await root.deleteCategory(id);
                   };
 
-                  const saveAbout = async () => {
-                      await root.updateAbout(aboutInput.value || '');
-                  };
                   const saveDefaultPeriod = async () => {
                       await root.updateDefaultPeriod(defaultStartInput.value, defaultEndInput.value);
                   };
@@ -939,16 +993,21 @@
                       newSectionName,
                       newSectionCompanyId,
                       newName,
+                      newNameCompanyId,
                       newNameSectionId,
+                      newNameUsername,
+                      newNamePassword,
+                      newNameError,
+                      csvCompanyId,
                       csvSectionId,
                       namesFile,
                       newCategory,
-                      aboutInput,
                       defaultStartInput,
                       defaultEndInput,
                       categoryGoalsInput,
                       companyName,
                       sectionLabel,
+                      sectionsOf,
                       editingCompanyId,
                       editingCompanyName,
                       editingSectionId,
@@ -956,6 +1015,7 @@
                       editingSectionCompanyId,
                       editingNameId,
                       editingNameName,
+                      editingNameCompanyId,
                       editingNameSectionId,
                       editingCategoryId,
                       editingCategoryName,
@@ -980,18 +1040,9 @@
                       cancelCategoryEdit,
                       saveCategory,
                       removeCategory,
-                      saveAbout,
                       saveDefaultPeriod,
                       saveCategoryGoals
                   };
-            }
-        };
-
-        const About = {
-            template: '#about-template',
-            setup() {
-                const root = inject('root');
-                return { root };
             }
         };
 
@@ -1000,7 +1051,6 @@
             { path: '/', component: InitiativeList },
             { path: '/list', redirect: '/' },
             { path: '/form/:id?', component: InitiativeForm },
-            { path: '/about', component: About },
             { path: '/settings', component: Settings },
         ];
         const router = createRouter({
@@ -1023,7 +1073,6 @@
                 const sections = ref([]);
                 const names = ref([]);
                 const categories = ref([]);
-                const aboutText = ref('');
                 const categoryGoals = ref({});
                 const defaultStart = ref('');
                 const defaultEnd = ref('');
@@ -1040,7 +1089,7 @@
                 const withLoading = async (fn) => {
                     loadingCount.value++;
                     try {
-                        await fn();
+                        return await fn();
                     } finally {
                         loadingCount.value--;
                     }
@@ -1077,7 +1126,6 @@
                     const settingsSnap = await getDoc(SETTINGS_REF());
                     if (!settingsSnap.exists()) {
                         await setDoc(SETTINGS_REF(), {
-                            about_text: DEFAULT_ABOUT,
                             default_start: '',
                             default_end: '',
                             category_goals: {}
@@ -1099,7 +1147,6 @@
                             await seedIfEmpty();
                             const settingsSnap = await getDoc(SETTINGS_REF());
                             const s = settingsSnap.exists() ? settingsSnap.data() : {};
-                            aboutText.value = s.about_text || '';
                             categoryGoals.value = s.category_goals || {};
                             defaultStart.value = s.default_start || '';
                             defaultEnd.value = s.default_end || '';
@@ -1186,17 +1233,6 @@
                             filterEnd.value = end;
                         } catch (error) {
                             console.error('Error updating default period:', error);
-                        }
-                    });
-                };
-
-                const updateAbout = async (text) => {
-                    await withLoading(async () => {
-                        try {
-                            await setDoc(SETTINGS_REF(), { about_text: text }, { merge: true });
-                            aboutText.value = text;
-                        } catch (error) {
-                            console.error('Error updating about text:', error);
                         }
                     });
                 };
@@ -1327,7 +1363,61 @@
                     return deleteMasterItem('sections', id, fetchSections);
                 };
 
-                const addName = (name, sectionId) => addMasterItem('names', { name, sectionId }, names, fetchNames, 'sectionId');
+                // 氏名の追加と同時に、任意でログインアカウント（ユーザー名/パスワード）も作成する。
+                // メインの Auth セッション（今操作している管理者自身）を維持したまま新規アカウントを
+                // 作れるよう、一時的な別 Firebase App インスタンス上で作成する。
+                const createLoginAccount = async (username, password, displayName) => {
+                    const secondaryApp = initializeApp(firebaseConfig, `secondary-${Math.random().toString(36).slice(2)}`);
+                    const secondaryAuth = getAuth(secondaryApp);
+                    if (useEmulators) {
+                        connectAuthEmulator(secondaryAuth, `http://${location.hostname}:9099`, { disableWarnings: true });
+                    }
+                    try {
+                        const pseudoEmail = `${username.trim().toLowerCase()}@${LOGIN_EMAIL_DOMAIN}`;
+                        const cred = await createUserWithEmailAndPassword(secondaryAuth, pseudoEmail, password);
+                        await updateProfile(cred.user, { displayName });
+                        await setDoc(doc(db, 'users', cred.user.uid), {
+                            username: username.trim().toLowerCase(),
+                            name: displayName,
+                        });
+                        return cred.user.uid;
+                    } finally {
+                        try { await signOut(secondaryAuth); } catch (e) { /* 無視 */ }
+                        await deleteApp(secondaryApp);
+                    }
+                };
+
+                const describeAccountError = (error) => {
+                    if (error.code === 'auth/email-already-in-use') return 'そのユーザー名は既に使われています。';
+                    if (error.code === 'auth/weak-password') return 'パスワードは6文字以上にしてください。';
+                    if (error.code === 'auth/invalid-email') return 'ユーザー名に使用できない文字が含まれています。';
+                    return 'ログインアカウントの作成に失敗しました: ' + (error.message || error.code || error);
+                };
+
+                // username を指定した場合のみログインアカウントも作成する（省略可）。
+                const addNameWithLogin = (name, sectionId, username, password) => withLoading(async () => {
+                    try {
+                        if (names.value.some(n => n.name === name && n.sectionId === sectionId)) {
+                            return { ok: false, message: '既に登録されています: ' + name };
+                        }
+                        const data = { name, sectionId };
+                        if (username) {
+                            try {
+                                await createLoginAccount(username, password, name);
+                            } catch (error) {
+                                console.error('Error creating login account:', error);
+                                return { ok: false, message: describeAccountError(error) };
+                            }
+                            data.username = username.trim().toLowerCase();
+                        }
+                        await addDoc(colRef('names'), data);
+                        await fetchNames();
+                        return { ok: true };
+                    } catch (error) {
+                        console.error('Error adding name:', error);
+                        return { ok: false, message: '追加に失敗しました。' };
+                    }
+                });
                 const updateName = (id, name, sectionId) => updateMasterItem('names', id, { name, sectionId }, fetchNames);
                 const deleteName = (id) => deleteMasterItem('names', id, fetchNames);
 
@@ -1432,7 +1522,6 @@
                       sections,
                       names,
                       categories,
-                      aboutText,
                       categoryGoals,
                       defaultStart,
                       defaultEnd,
@@ -1448,7 +1537,7 @@
                       fetchCategories,
                       addCompany,
                       addSection,
-                      addName,
+                      addNameWithLogin,
                       importNames,
                       addCategory,
                       updateCompany,
@@ -1459,7 +1548,6 @@
                       deleteName,
                       updateCategory,
                       deleteCategory,
-                      updateAbout,
                       updateDefaultPeriod,
                       updateCategoryGoals,
                       formatCurrency,
