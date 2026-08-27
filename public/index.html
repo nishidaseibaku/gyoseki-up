@@ -120,9 +120,6 @@
                             <router-link to="/" class="nav-link" active-class="active" exact-active-class="active" @click="hideOffcanvas"><i class="bi bi-list-task me-2"></i>実績一覧</router-link>
                         </li>
                         <li class="nav-item">
-                            <router-link to="/form" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-plus-circle me-2"></i>新規登録</router-link>
-                        </li>
-                        <li class="nav-item">
                             <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
                         </li>
                     </ul>
@@ -135,9 +132,6 @@
                     <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNav" aria-controls="offcanvasNav">
                         <i class="bi bi-list"></i>
                     </button>
-                    <router-link v-if="$route.path.startsWith('/form')" to="/" class="btn btn-outline-secondary btn-sm ms-2">
-                        <i class="bi bi-arrow-left me-1"></i>一覧に戻る
-                    </router-link>
                     <a class="navbar-brand mx-auto" href="#">
                         業績アップ取り組みダッシュボード
                     </a>
@@ -211,56 +205,6 @@
         </div>
     </script>
 
-    <script type="text/x-template" id="initiative-form-template">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <span>{{ isEdit ? '取り組みを編集' : '新規取り組みを登録' }}</span>
-            </div>
-            <div class="card-body">
-                <form @submit.prevent="submit">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="name" class="form-label">氏名</label>
-                            <tom-select id="name" class="form-select" :options="root.names.value.map(n => n.name)" :model-value="newInitiative.name" @update:model-value="onNameChange" required></tom-select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">所属</label>
-                            <input type="text" class="form-control" :value="(newInitiative.company || '―') + ' / ' + (newInitiative.section || '―')" disabled>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="title" class="form-label">タイトル</label>
-                            <clearable-input type="text" class="form-control" id="title" v-model="newInitiative.title" required></clearable-input>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="date" class="form-label">実施日</label>
-                            <clearable-input type="date" class="form-control" id="date" v-model="newInitiative.date" required></clearable-input>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="category" class="form-label">分類</label>
-                            <select id="category" class="form-select" v-model="newInitiative.category" required>
-                                <option v-for="c in root.categories.value" :key="c.id" :value="c.name">{{ c.name }}</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label for="content" class="form-label">具体的な内容</label>
-                            <textarea class="form-control" id="content" rows="3" v-model="newInitiative.content" required></textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="forecastAmount" class="form-label">見込み金額 (円)</label>
-                            <clearable-input type="text" class="form-control" id="forecastAmount" v-model="forecastAmountInput" @input="handleForecastAmountInput" required></clearable-input>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="actualAmount" class="form-label">実績金額 (円)</label>
-                            <clearable-input type="text" class="form-control" id="actualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary mt-4" :disabled="root.isLoading.value">{{ isEdit ? '更新する' : '登録する' }}</button>
-                    <button type="button" class="btn btn-danger mt-4 ms-2" v-if="isEdit" @click="remove" :disabled="root.isLoading.value">削除</button>
-                </form>
-            </div>
-        </div>
-    </script>
-
     <script type="text/x-template" id="initiative-list-template">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -269,9 +213,9 @@
                     <button class="btn btn-outline-secondary me-2" @click="exportCsv">
                         <i class="bi bi-download me-1"></i>CSVエクスポート
                     </button>
-                    <router-link to="/form" class="btn btn-primary">
+                    <button type="button" class="btn btn-primary" @click="openAddModal">
                         <i class="bi bi-plus-lg me-1"></i>新規登録
-                    </router-link>
+                    </button>
                 </div>
             </div>
             <div class="card-body">
@@ -318,7 +262,7 @@
                         </thead>
                         <tbody>
                             <tr v-for="item in paginatedInitiatives" :key="item.id"
-                                tabindex="0" @keyup.enter="edit(item.id)" @click="edit(item.id)" style="cursor:pointer">
+                                tabindex="0" @keyup.enter="openEditModal(item)" @click="openEditModal(item)" style="cursor:pointer">
                                 <td :title="item.date">{{ item.date }}</td>
                                 <td :title="item.company">{{ item.company }}</td>
                                 <td :title="item.section">{{ item.section }}</td>
@@ -329,7 +273,7 @@
                                 <td class="text-end">{{ formatCurrency(item.forecastAmount) }}</td>
                                 <td class="text-end">{{ formatCurrency(item.actualAmount) }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-secondary" @click.stop="copy(item.id)">複写</button>
+                                    <button class="btn btn-sm btn-outline-secondary" @click.stop="openCopyModal(item)">複写</button>
                                 </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
@@ -353,6 +297,64 @@
                             <button type="button" class="page-link" @click="goToPage(currentPage + 1)">次へ</button>
                         </li>
                     </ul>
+                </div>
+
+                <!-- 取り組み実績 追加/編集 モーダル -->
+                <div v-if="formModalMode" class="modal-backdrop show" @click="closeFormModal"></div>
+                <div v-if="formModalMode" class="modal d-block" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-lg" role="document" @click.stop>
+                        <div class="modal-content">
+                            <form @submit.prevent="submitFormModal">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">{{ formModalMode === 'edit' ? '取り組みを編集' : '新規取り組みを登録' }}</h5>
+                                    <button type="button" class="btn-close" @click="closeFormModal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="formName" class="form-label">氏名</label>
+                                            <tom-select id="formName" class="form-select" :options="root.names.value.map(n => n.name)" :model-value="formInitiative.name" @update:model-value="onFormNameChange" required></tom-select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">所属</label>
+                                            <input type="text" class="form-control" :value="(formInitiative.company || '―') + ' / ' + (formInitiative.section || '―')" disabled>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="formTitle" class="form-label">タイトル</label>
+                                            <clearable-input type="text" class="form-control" id="formTitle" v-model="formInitiative.title" required></clearable-input>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="formDate" class="form-label">実施日</label>
+                                            <clearable-input type="date" class="form-control" id="formDate" v-model="formInitiative.date" required></clearable-input>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="formCategory" class="form-label">分類</label>
+                                            <select id="formCategory" class="form-select" v-model="formInitiative.category" required>
+                                                <option v-for="c in root.categories.value" :key="c.id" :value="c.name">{{ c.name }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label for="formContent" class="form-label">具体的な内容</label>
+                                            <textarea class="form-control" id="formContent" rows="3" v-model="formInitiative.content" required></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="formForecastAmount" class="form-label">見込み金額 (円)</label>
+                                            <clearable-input type="text" class="form-control" id="formForecastAmount" v-model="forecastAmountInput" @input="handleForecastAmountInput" required></clearable-input>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="formActualAmount" class="form-label">実績金額 (円)</label>
+                                            <clearable-input type="text" class="form-control" id="formActualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-danger me-auto" v-if="formModalMode === 'edit'" @click="removeFormModal" :disabled="root.isLoading.value">削除</button>
+                                    <button type="button" class="btn btn-secondary" @click="closeFormModal">キャンセル</button>
+                                    <button type="submit" class="btn btn-primary" :disabled="root.isLoading.value">{{ formModalMode === 'edit' ? '更新する' : '登録する' }}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -622,135 +624,10 @@
         const DEFAULT_CATEGORIES = ['粗利率改善', '固定費コントロール', '粗利額アップ'];
 
         // --- Components ---
-        const InitiativeForm = {
-            template: '#initiative-form-template',
-            setup() {
-                const root = inject('root');
-                const router = VueRouter.useRouter();
-                const route = VueRouter.useRoute();
-
-                const newInitiative = ref({
-                    name: '',
-                    company: '',
-                    section: '',
-                    title: '',
-                    date: new Date().toISOString().slice(0, 10),
-                    category: '粗利額アップ',
-                    content: '',
-                    forecastAmount: null,
-                    actualAmount: null,
-                });
-
-                // 氏名の選択に応じて、その人が所属する課・社を自動的に紐づける
-                // （社・課はここでは直接選ばせず、氏名マスタの登録内容から解決する）。
-                const resolveCompanySection = (name) => {
-                    const person = root.names.value.find(n => n.name === name);
-                    const section = person ? root.sections.value.find(s => s.id === person.sectionId) : null;
-                    const company = section ? root.companies.value.find(co => co.id === section.companyId) : null;
-                    newInitiative.value.company = company ? company.name : '';
-                    newInitiative.value.section = section ? section.name : '';
-                };
-
-                const onNameChange = (name) => {
-                    newInitiative.value.name = name;
-                    resolveCompanySection(name);
-                };
-
-                const forecastAmountInput = ref('');
-                const actualAmountInput = ref('');
-
-                // clearable-input はラップした<input>の@inputを内部の$emitより先に発火させるため、
-                // ref経由(inputRef.value)で値を読むと1文字分古い値を参照してしまい、
-                // 桁区切り再フォーマット時にカーソル位置がずれて数字が壊れる（例: 480000→4,8000）。
-                // event.target を直接読み書きすることでこのズレを避け、カーソル位置も桁数基準で復元する。
-                const makeAmountBinding = (field, inputRef) => {
-                    watch(
-                        () => newInitiative.value[field],
-                        (val) => {
-                            inputRef.value = val != null ? root.formatCurrency(val) : '';
-                        },
-                        { immediate: true }
-                    );
-
-                    return (event) => {
-                        const target = event.target;
-                        const cursor = target.selectionStart ?? target.value.length;
-                        const digitsBeforeCursor = target.value.slice(0, cursor).replace(/\D/g, '').length;
-
-                        const numeric = target.value.replace(/\D/g, '');
-                        const val = numeric ? parseInt(numeric, 10) : null;
-                        newInitiative.value[field] = val;
-
-                        const formatted = val != null ? root.formatCurrency(val) : '';
-                        target.value = formatted;
-                        inputRef.value = formatted;
-
-                        let newCursor = 0;
-                        if (digitsBeforeCursor > 0) {
-                            let seen = 0;
-                            for (let i = 0; i < formatted.length; i++) {
-                                if (/\d/.test(formatted[i])) seen++;
-                                newCursor = i + 1;
-                                if (seen === digitsBeforeCursor) break;
-                            }
-                        }
-                        target.setSelectionRange(newCursor, newCursor);
-                    };
-                };
-
-                const handleForecastAmountInput = makeAmountBinding('forecastAmount', forecastAmountInput);
-                const handleActualAmountInput = makeAmountBinding('actualAmount', actualAmountInput);
-
-                const isEdit = computed(() => !!route.params.id);
-
-                onMounted(() => {
-                    if (route.query.copy) {
-                        const existing = root.initiatives.value.find(i => i.id === route.query.copy);
-                        if (existing) {
-                            const { id, ...rest } = existing;
-                            newInitiative.value = { ...rest };
-                        }
-                    } else if (isEdit.value) {
-                        const existing = root.initiatives.value.find(i => i.id === route.params.id);
-                        if (existing) {
-                            newInitiative.value = { ...existing };
-                        }
-                    } else {
-                        // 新規登録: ログインユーザーに一致する社員があれば氏名を初期選択し、
-                        // それに紐づく社・課も自動的に設定する。一致しなければ未選択のまま。
-                        const me = root.myProfile.value;
-                        if (me && me.name) {
-                            newInitiative.value.name = me.name;
-                            resolveCompanySection(me.name);
-                        }
-                    }
-                });
-
-                const submit = async () => {
-                    if (isEdit.value) {
-                        await root.updateInitiative(route.params.id, newInitiative.value);
-                    } else {
-                        await root.submitInitiative(newInitiative.value);
-                    }
-                    await router.push('/');
-                };
-
-                const remove = async () => {
-                    if (!isEdit.value) return;
-                    if (!confirm('本当に削除しますか？')) return;
-                    await root.deleteInitiative(route.params.id);
-                    await router.push('/');
-                };
-
-                return { newInitiative, submit, isEdit, remove, root, forecastAmountInput, actualAmountInput, handleForecastAmountInput, handleActualAmountInput, onNameChange };
-            }
-        };
-
         const InitiativeList = {
             template: '#initiative-list-template',
             setup() {
                 const root = inject('root');
-                const router = VueRouter.useRouter();
                 const filters = ref({ name: '', company: '', section: '', category: '' });
                 const sortByColumn = ref('date');
                 const sortDirection = ref('desc');
@@ -829,6 +706,120 @@
                     document.removeEventListener('mouseup', onResizeEnd);
                 });
 
+                // --- 取り組み実績 追加/編集モーダル ---
+                const formModalMode = ref(null); // null | 'add' | 'edit'
+                const formModalId = ref(null);
+                const defaultFormInitiative = () => ({
+                    name: '',
+                    company: '',
+                    section: '',
+                    title: '',
+                    date: new Date().toISOString().slice(0, 10),
+                    category: root.categories.value[0]?.name || '',
+                    content: '',
+                    forecastAmount: null,
+                    actualAmount: null,
+                });
+                const formInitiative = ref(defaultFormInitiative());
+                const forecastAmountInput = ref('');
+                const actualAmountInput = ref('');
+
+                // 氏名の選択に応じて、その人が所属する課・社を自動的に紐づける
+                // （社・課はここでは直接選ばせず、氏名マスタの登録内容から解決する）。
+                const resolveFormCompanySection = (name) => {
+                    const person = root.names.value.find(n => n.name === name);
+                    const section = person ? root.sections.value.find(s => s.id === person.sectionId) : null;
+                    const company = section ? root.companies.value.find(co => co.id === section.companyId) : null;
+                    formInitiative.value.company = company ? company.name : '';
+                    formInitiative.value.section = section ? section.name : '';
+                };
+                const onFormNameChange = (name) => {
+                    formInitiative.value.name = name;
+                    resolveFormCompanySection(name);
+                };
+
+                // clearable-input はラップした<input>の@inputを内部の$emitより先に発火させるため、
+                // ref経由(inputRef.value)で値を読むと1文字分古い値を参照してしまい、
+                // 桁区切り再フォーマット時にカーソル位置がずれて数字が壊れる（例: 480000→4,8000）。
+                // event.target を直接読み書きすることでこのズレを避け、カーソル位置も桁数基準で復元する。
+                const makeAmountBinding = (field, inputRef) => (event) => {
+                    const target = event.target;
+                    const cursor = target.selectionStart ?? target.value.length;
+                    const digitsBeforeCursor = target.value.slice(0, cursor).replace(/\D/g, '').length;
+
+                    const numeric = target.value.replace(/\D/g, '');
+                    const val = numeric ? parseInt(numeric, 10) : null;
+                    formInitiative.value[field] = val;
+
+                    const formatted = val != null ? root.formatCurrency(val) : '';
+                    target.value = formatted;
+                    inputRef.value = formatted;
+
+                    let newCursor = 0;
+                    if (digitsBeforeCursor > 0) {
+                        let seen = 0;
+                        for (let i = 0; i < formatted.length; i++) {
+                            if (/\d/.test(formatted[i])) seen++;
+                            newCursor = i + 1;
+                            if (seen === digitsBeforeCursor) break;
+                        }
+                    }
+                    target.setSelectionRange(newCursor, newCursor);
+                };
+                const handleForecastAmountInput = makeAmountBinding('forecastAmount', forecastAmountInput);
+                const handleActualAmountInput = makeAmountBinding('actualAmount', actualAmountInput);
+
+                // モーダルを開くたびに金額表示欄を現在値に合わせて明示的に同期する
+                // （formInitiativeは使い回すrefのため、値が前回と偶然同じだとwatch任せでは更新されないことがある）
+                const syncAmountInputs = () => {
+                    forecastAmountInput.value = formInitiative.value.forecastAmount != null ? root.formatCurrency(formInitiative.value.forecastAmount) : '';
+                    actualAmountInput.value = formInitiative.value.actualAmount != null ? root.formatCurrency(formInitiative.value.actualAmount) : '';
+                };
+
+                const openAddModal = () => {
+                    formModalMode.value = 'add';
+                    formModalId.value = null;
+                    formInitiative.value = defaultFormInitiative();
+                    // 新規登録: ログインユーザーに一致する氏名があれば初期選択し、
+                    // それに紐づく社・課も自動的に設定する。一致しなければ未選択のまま。
+                    const me = root.myProfile.value;
+                    if (me && me.name) {
+                        formInitiative.value.name = me.name;
+                        resolveFormCompanySection(me.name);
+                    }
+                    syncAmountInputs();
+                };
+                const openEditModal = (item) => {
+                    formModalMode.value = 'edit';
+                    formModalId.value = item.id;
+                    formInitiative.value = { ...item };
+                    syncAmountInputs();
+                };
+                const openCopyModal = (item) => {
+                    formModalMode.value = 'add';
+                    formModalId.value = null;
+                    const { id, ...rest } = item;
+                    formInitiative.value = { ...rest };
+                    syncAmountInputs();
+                };
+                const closeFormModal = () => {
+                    formModalMode.value = null;
+                };
+                const submitFormModal = async () => {
+                    if (formModalMode.value === 'edit') {
+                        await root.updateInitiative(formModalId.value, formInitiative.value);
+                    } else {
+                        await root.submitInitiative(formInitiative.value);
+                    }
+                    closeFormModal();
+                };
+                const removeFormModal = async () => {
+                    if (!formModalId.value) return;
+                    if (!confirm('本当に削除しますか？')) return;
+                    await root.deleteInitiative(formModalId.value);
+                    closeFormModal();
+                };
+
                 const sortBy = (column) => {
                     if (sortByColumn.value === column) {
                         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -845,14 +836,6 @@
 
                 const resetFilters = () => {
                     filters.value = { name: '', company: '', section: '', category: '' };
-                };
-
-                const edit = (id) => {
-                    router.push(`/form/${id}`);
-                };
-
-                const copy = (id) => {
-                    router.push({ path: '/form', query: { copy: id } });
                 };
 
                 const exportCsv = () => {
@@ -896,9 +879,20 @@
                     colWidths,
                     startResize,
                     resetFilters,
-                    edit,
-                    copy,
                     exportCsv,
+                    formModalMode,
+                    formInitiative,
+                    forecastAmountInput,
+                    actualAmountInput,
+                    handleForecastAmountInput,
+                    handleActualAmountInput,
+                    onFormNameChange,
+                    openAddModal,
+                    openEditModal,
+                    openCopyModal,
+                    closeFormModal,
+                    submitFormModal,
+                    removeFormModal,
                     getCategoryClass: root.getCategoryClass,
                     formatCurrency: root.formatCurrency
                 };
@@ -1160,7 +1154,6 @@
         const routes = [
             { path: '/', component: InitiativeList },
             { path: '/list', redirect: '/' },
-            { path: '/form/:id?', component: InitiativeForm },
             { path: '/settings', component: Settings },
         ];
         const router = createRouter({
