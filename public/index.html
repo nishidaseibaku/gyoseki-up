@@ -70,6 +70,32 @@
         .col-resizer.resizing {
             background-color: rgba(13, 110, 253, .35);
         }
+        /* モーダルの幅・高さをウィンドウサイズに応じて可変にする
+           （Bootstrapの固定ブレークポイントではなく、vw/vh基準で連続的に変化させる） */
+        .modal-dialog {
+            width: min(92vw, 700px);
+            max-width: min(92vw, 700px);
+        }
+        .modal-dialog.modal-lg {
+            width: min(92vw, 1000px);
+            max-width: min(92vw, 1000px);
+        }
+        .modal-content {
+            max-height: calc(100vh - 3.5rem);
+            overflow: hidden;
+        }
+        /* modal-header/body/footer を <form> で包んでいるモーダルでは、
+           Bootstrapのflex連鎖が<form>で途切れるため、formもflex列として中継させる */
+        .modal-content > form {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1 1 auto;
+        }
+        .modal-body {
+            overflow-y: auto;
+            min-height: 0;
+        }
         .fade-enter-active, .fade-leave-active {
             transition: opacity 0.3s ease;
         }
