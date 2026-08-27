@@ -413,61 +413,19 @@
                     <div class="accordion-body">
                         <ul class="list-group mb-3">
                             <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
-                                <template v-if="editingNameId === n.id">
-                                    <select class="form-select me-2" style="max-width: 160px;" v-model="editingNameCompanyId" @change="editingNameSectionId = (sectionsOf(editingNameCompanyId)[0]?.id || '')">
-                                        <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
-                                    </select>
-                                    <select class="form-select me-2" style="max-width: 160px;" v-model="editingNameSectionId">
-                                        <option v-for="s in sectionsOf(editingNameCompanyId)" :key="s.id" :value="s.id">{{ s.name }}</option>
-                                    </select>
-                                    <clearable-input type="text" class="form-control me-2" v-model="editingNameName"></clearable-input>
-                                    <button class="btn btn-sm btn-primary me-1" @click="saveName(n.id)" :disabled="root.isLoading.value">保存</button>
-                                    <button class="btn btn-sm btn-secondary" @click="cancelNameEdit" :disabled="root.isLoading.value">キャンセル</button>
-                                </template>
-                                <template v-else>
-                                    <span class="me-auto">
-                                        {{ n.name || n }} <span class="text-muted">（{{ sectionLabel(n.sectionId) }}）</span>
-                                        <span v-if="n.username" class="badge bg-secondary ms-1">ログイン: {{ n.username }}</span>
-                                    </span>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" @click="startNameEdit(n)" :disabled="root.isLoading.value">編集</button>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
-                                </template>
+                                <span class="me-auto">
+                                    {{ n.name || n }} <span class="text-muted">（{{ sectionLabel(n.sectionId) }}）</span>
+                                    <span v-if="n.username" class="badge bg-secondary ms-1">ログイン: {{ n.username }}</span>
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary me-1" @click="openEditNameModal(n)" :disabled="root.isLoading.value">編集</button>
+                                <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
                             </li>
-                            <li class="list-group-item text-muted" v-if="root.names.value.length === 0">氏名が登録されていません。下のフォームから追加してください。</li>
+                            <li class="list-group-item text-muted" v-if="root.names.value.length === 0">氏名が登録されていません。下のボタンから追加してください。</li>
                         </ul>
                         <template v-if="root.sections.value.length > 0">
-                            <form class="border rounded p-3 mb-3" @submit.prevent="addName">
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <label class="form-label small mb-1">社</label>
-                                        <select class="form-select" v-model="newNameCompanyId">
-                                            <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small mb-1">課</label>
-                                        <select class="form-select" v-model="newNameSectionId">
-                                            <option v-for="s in sectionsOf(newNameCompanyId)" :key="s.id" :value="s.id">{{ s.name }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small mb-1">氏名</label>
-                                        <clearable-input type="text" class="form-control" v-model="newName" placeholder="氏名"></clearable-input>
-                                    </div>
-                                </div>
-                                <div class="row g-2 mt-1">
-                                    <div class="col-md-4">
-                                        <label class="form-label small mb-1">ログインユーザー名（任意）</label>
-                                        <clearable-input type="text" class="form-control" v-model="newNameUsername" placeholder="未入力ならログイン不可"></clearable-input>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label small mb-1">パスワード（任意）</label>
-                                        <input type="password" class="form-control" v-model="newNamePassword" placeholder="6文字以上" autocomplete="new-password">
-                                    </div>
-                                </div>
-                                <div v-if="newNameError" class="alert alert-danger py-2 mb-0 mt-3" style="font-size: .85rem;">{{ newNameError }}</div>
-                                <button type="submit" class="btn btn-primary mt-3" :disabled="root.isLoading.value">追加</button>
-                            </form>
+                            <button type="button" class="btn btn-primary mb-3" @click="openAddNameModal">
+                                <i class="bi bi-plus-lg me-1"></i>氏名を追加
+                            </button>
                             <form class="border rounded p-3" @submit.prevent="importNamesCsv">
                                 <label class="form-label small mb-1">CSVから一括追加</label>
                                 <div class="row g-2">
@@ -489,6 +447,58 @@
                             </form>
                         </template>
                         <p class="text-muted mb-0" style="font-size: .85rem;" v-else>氏名を追加するには、先に「課」を登録してください。</p>
+
+                        <!-- 氏名 追加/編集 モーダル -->
+                        <div v-if="nameModalMode" class="modal-backdrop show" @click="closeNameModal"></div>
+                        <div v-if="nameModalMode" class="modal d-block" tabindex="-1" role="dialog">
+                            <div class="modal-dialog" role="document" @click.stop>
+                                <div class="modal-content">
+                                    <form @submit.prevent="submitNameModal">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{{ nameModalMode === 'add' ? '氏名を追加' : '氏名を編集' }}</h5>
+                                            <button type="button" class="btn-close" @click="closeNameModal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">社</label>
+                                                <select class="form-select" v-model="nameModalCompanyId" @change="onNameModalCompanyChange">
+                                                    <option v-for="co in root.companies.value" :key="co.id" :value="co.id">{{ co.name }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">課</label>
+                                                <select class="form-select" v-model="nameModalSectionId">
+                                                    <option v-for="s in sectionsOf(nameModalCompanyId)" :key="s.id" :value="s.id">{{ s.name }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">氏名</label>
+                                                <clearable-input type="text" class="form-control" v-model="nameModalName"></clearable-input>
+                                            </div>
+                                            <template v-if="nameModalMode === 'add'">
+                                                <div class="mb-3">
+                                                    <label class="form-label">ログインユーザー名（任意）</label>
+                                                    <clearable-input type="text" class="form-control" v-model="nameModalUsername" placeholder="未入力ならログイン不可"></clearable-input>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">パスワード（任意）</label>
+                                                    <input type="password" class="form-control" v-model="nameModalPassword" placeholder="6文字以上" autocomplete="new-password">
+                                                </div>
+                                            </template>
+                                            <p v-else-if="nameModalUsername" class="text-muted mb-0" style="font-size: .85rem;">
+                                                ログインユーザー名: {{ nameModalUsername }}<br>
+                                                パスワードの変更は <code>tools/manage_users.py reset-password</code> で行ってください。
+                                            </p>
+                                            <div v-if="nameModalError" class="alert alert-danger py-2 mb-0 mt-3" style="font-size: .85rem;">{{ nameModalError }}</div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" @click="closeNameModal">キャンセル</button>
+                                            <button type="submit" class="btn btn-primary" :disabled="root.isLoading.value">{{ nameModalMode === 'add' ? '追加' : '保存' }}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -807,12 +817,6 @@
                   const newCompany = ref('');
                   const newSectionName = ref('');
                   const newSectionCompanyId = ref('');
-                  const newName = ref('');
-                  const newNameCompanyId = ref('');
-                  const newNameSectionId = ref('');
-                  const newNameUsername = ref('');
-                  const newNamePassword = ref('');
-                  const newNameError = ref('');
                   const csvCompanyId = ref('');
                   const csvSectionId = ref('');
                   const namesFile = ref(null);
@@ -823,23 +827,78 @@
                       const s = root.sections.value.find(s => s.id === sectionId);
                       return s ? `${companyName(s.companyId)} / ${s.name}` : '';
                   };
-                  // 指定した社に属する課だけを返す（氏名追加フォームの「社→課」の絞り込みに使う）
+                  // 指定した社に属する課だけを返す（氏名モーダル・CSVインポートの「社→課」の絞り込みに使う）
                   const sectionsOf = (companyId) => root.sections.value.filter(s => s.companyId === companyId);
+                  const firstSectionOf = (companyId) => sectionsOf(companyId)[0]?.id || '';
 
                   watch(root.companies, (list) => {
                       if (!newSectionCompanyId.value && list.length) newSectionCompanyId.value = list[0].id;
-                      if (!newNameCompanyId.value && list.length) newNameCompanyId.value = list[0].id;
                       if (!csvCompanyId.value && list.length) csvCompanyId.value = list[0].id;
                   }, { immediate: true });
-                  // 社の選択が変わったら、その社の課の先頭を自動選択し直す
-                  watch(newNameCompanyId, (companyId) => {
-                      const opts = sectionsOf(companyId);
-                      newNameSectionId.value = opts.length ? opts[0].id : '';
-                  });
                   watch(csvCompanyId, (companyId) => {
-                      const opts = sectionsOf(companyId);
-                      csvSectionId.value = opts.length ? opts[0].id : '';
+                      csvSectionId.value = firstSectionOf(companyId);
                   });
+
+                  // 氏名 追加/編集モーダル
+                  const nameModalMode = ref(null); // null | 'add' | 'edit'
+                  const nameModalEditId = ref(null);
+                  const nameModalCompanyId = ref('');
+                  const nameModalSectionId = ref('');
+                  const nameModalName = ref('');
+                  const nameModalUsername = ref('');
+                  const nameModalPassword = ref('');
+                  const nameModalError = ref('');
+
+                  const openAddNameModal = () => {
+                      nameModalMode.value = 'add';
+                      nameModalEditId.value = null;
+                      nameModalCompanyId.value = root.companies.value[0]?.id || '';
+                      nameModalSectionId.value = firstSectionOf(nameModalCompanyId.value);
+                      nameModalName.value = '';
+                      nameModalUsername.value = '';
+                      nameModalPassword.value = '';
+                      nameModalError.value = '';
+                  };
+                  const openEditNameModal = (n) => {
+                      nameModalMode.value = 'edit';
+                      nameModalEditId.value = n.id;
+                      const sec = root.sections.value.find(s => s.id === n.sectionId);
+                      nameModalCompanyId.value = sec ? sec.companyId : '';
+                      nameModalSectionId.value = n.sectionId;
+                      nameModalName.value = n.name || n;
+                      nameModalUsername.value = n.username || '';
+                      nameModalPassword.value = '';
+                      nameModalError.value = '';
+                  };
+                  const closeNameModal = () => {
+                      nameModalMode.value = null;
+                  };
+                  const onNameModalCompanyChange = () => {
+                      nameModalSectionId.value = firstSectionOf(nameModalCompanyId.value);
+                  };
+                  const submitNameModal = async () => {
+                      if (!nameModalName.value || !nameModalSectionId.value) return;
+                      if (nameModalMode.value === 'add') {
+                          if (nameModalUsername.value && !nameModalPassword.value) {
+                              nameModalError.value = 'パスワードを入力してください。';
+                              return;
+                          }
+                          if (!nameModalUsername.value && nameModalPassword.value) {
+                              nameModalError.value = 'ユーザー名を入力してください。';
+                              return;
+                          }
+                          nameModalError.value = '';
+                          const result = await root.addNameWithLogin(nameModalName.value, nameModalSectionId.value, nameModalUsername.value, nameModalPassword.value);
+                          if (result.ok) {
+                              closeNameModal();
+                          } else {
+                              nameModalError.value = result.message || '追加に失敗しました。';
+                          }
+                      } else {
+                          await root.updateName(nameModalEditId.value, nameModalName.value, nameModalSectionId.value);
+                          closeNameModal();
+                      }
+                  };
                   const defaultStartInput = ref(root.defaultStart.value);
                   watch(root.defaultStart, v => (defaultStartInput.value = v));
                   const defaultEndInput = ref(root.defaultEnd.value);
@@ -852,10 +911,6 @@
                   const editingSectionId = ref(null);
                   const editingSectionName = ref('');
                   const editingSectionCompanyId = ref('');
-                  const editingNameId = ref(null);
-                  const editingNameName = ref('');
-                  const editingNameCompanyId = ref('');
-                  const editingNameSectionId = ref('');
                   const editingCategoryId = ref(null);
                   const editingCategoryName = ref('');
 
@@ -907,44 +962,6 @@
                       await root.deleteSection(id);
                   };
 
-                  const addName = async () => {
-                      if (!newName.value || !newNameSectionId.value) return;
-                      if (newNameUsername.value && !newNamePassword.value) {
-                          newNameError.value = 'パスワードを入力してください。';
-                          return;
-                      }
-                      if (!newNameUsername.value && newNamePassword.value) {
-                          newNameError.value = 'ユーザー名を入力してください。';
-                          return;
-                      }
-                      newNameError.value = '';
-                      const result = await root.addNameWithLogin(newName.value, newNameSectionId.value, newNameUsername.value, newNamePassword.value);
-                      if (result.ok) {
-                          newName.value = '';
-                          newNameUsername.value = '';
-                          newNamePassword.value = '';
-                      } else {
-                          newNameError.value = result.message || '追加に失敗しました。';
-                      }
-                  };
-                  const startNameEdit = (n) => {
-                      editingNameId.value = n.id;
-                      editingNameName.value = n.name || n;
-                      editingNameSectionId.value = n.sectionId;
-                      const sec = root.sections.value.find(s => s.id === n.sectionId);
-                      editingNameCompanyId.value = sec ? sec.companyId : '';
-                  };
-                  const cancelNameEdit = () => {
-                      editingNameId.value = null;
-                      editingNameName.value = '';
-                      editingNameCompanyId.value = '';
-                      editingNameSectionId.value = '';
-                  };
-                  const saveName = async (id) => {
-                      if (!editingNameName.value || !editingNameSectionId.value) return;
-                      await root.updateName(id, editingNameName.value, editingNameSectionId.value);
-                      cancelNameEdit();
-                  };
                   const removeName = async (id) => {
                       if (!confirm('削除しますか？')) return;
                       await root.deleteName(id);
@@ -992,12 +1009,6 @@
                       newCompany,
                       newSectionName,
                       newSectionCompanyId,
-                      newName,
-                      newNameCompanyId,
-                      newNameSectionId,
-                      newNameUsername,
-                      newNamePassword,
-                      newNameError,
                       csvCompanyId,
                       csvSectionId,
                       namesFile,
@@ -1013,12 +1024,20 @@
                       editingSectionId,
                       editingSectionName,
                       editingSectionCompanyId,
-                      editingNameId,
-                      editingNameName,
-                      editingNameCompanyId,
-                      editingNameSectionId,
                       editingCategoryId,
                       editingCategoryName,
+                      nameModalMode,
+                      nameModalCompanyId,
+                      nameModalSectionId,
+                      nameModalName,
+                      nameModalUsername,
+                      nameModalPassword,
+                      nameModalError,
+                      openAddNameModal,
+                      openEditNameModal,
+                      closeNameModal,
+                      onNameModalCompanyChange,
+                      submitNameModal,
                       addCompany,
                       startCompanyEdit,
                       cancelCompanyEdit,
@@ -1029,10 +1048,6 @@
                       cancelSectionEdit,
                       saveSection,
                       removeSection,
-                      addName,
-                      startNameEdit,
-                      cancelNameEdit,
-                      saveName,
                       removeName,
                       importNamesCsv,
                       addCategory,
