@@ -248,6 +248,7 @@
                     <table class="table table-hover resizable-table">
                         <thead>
                             <tr>
+                                <th scope="col" @click="sortBy('no')" class="th-sortable text-end" :style="{width: colWidths.no + 'px'}">No. <i :class="sortIcon('no')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('no', $event)" @click.stop></span></th>
                                 <th scope="col" @click="sortBy('date')" class="th-sortable" :style="{width: colWidths.date + 'px'}">実施日 <i :class="sortIcon('date')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('date', $event)" @click.stop></span></th>
                                 <th scope="col" @click="sortBy('company')" class="th-sortable" :style="{width: colWidths.company + 'px'}">社 <i :class="sortIcon('company')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('company', $event)" @click.stop></span></th>
                                 <th scope="col" @click="sortBy('section')" class="th-sortable" :style="{width: colWidths.section + 'px'}">課 <i :class="sortIcon('section')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('section', $event)" @click.stop></span></th>
@@ -263,6 +264,7 @@
                         <tbody>
                             <tr v-for="item in paginatedInitiatives" :key="item.id"
                                 tabindex="0" @keyup.enter="openEditModal(item)" @click="openEditModal(item)" style="cursor:pointer">
+                                <td class="text-end">{{ item.no }}</td>
                                 <td :title="item.date">{{ item.date }}</td>
                                 <td :title="item.company">{{ item.company }}</td>
                                 <td :title="item.section">{{ item.section }}</td>
@@ -277,7 +279,7 @@
                                 </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
-                                <td colspan="10" class="text-center">該当するデータがありません。</td>
+                                <td colspan="11" class="text-center">該当するデータがありません。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -587,7 +589,7 @@
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import {
             getFirestore, collection, doc, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-            query, where, writeBatch, serverTimestamp, connectFirestoreEmulator
+            query, where, writeBatch, serverTimestamp, connectFirestoreEmulator, runTransaction
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const firebaseConfig = {
@@ -678,7 +680,7 @@
 
                 // --- 列幅のドラッグ調整 ---
                 const colWidths = ref({
-                    date: 110, company: 130, section: 130, name: 110, title: 180,
+                    no: 70, date: 110, company: 130, section: 130, name: 110, title: 180,
                     category: 130, content: 320, forecastAmount: 130, actualAmount: 130, actions: 90
                 });
                 let resizingCol = null;
@@ -839,8 +841,9 @@
                 };
 
                 const exportCsv = () => {
-                    const headers = ['実施日', '社', '課', '氏名', 'タイトル', '分類', '内容', '見込み金額', '実績金額'];
+                    const headers = ['No.', '実施日', '社', '課', '氏名', 'タイトル', '分類', '内容', '見込み金額', '実績金額'];
                     const rows = sortedInitiatives.value.map(item => [
+                        item.no,
                         item.date,
                         item.company,
                         item.section,
@@ -1367,11 +1370,25 @@
                     actualAmount: parseInt(data.actualAmount, 10) || 0,
                 });
 
+                // 実績の管理番号を採番する。counters/initiatives の値をトランザクションで
+                // 読み取り→+1→書き戻しすることで、同時登録が重なっても番号が重複しない。
+                const nextInitiativeNo = async () => {
+                    const counterRef = doc(db, 'counters', 'initiatives');
+                    return await runTransaction(db, async (tx) => {
+                        const snap = await tx.get(counterRef);
+                        const next = (snap.exists() ? (snap.data().value || 0) : 0) + 1;
+                        tx.set(counterRef, { value: next });
+                        return next;
+                    });
+                };
+
                 const submitInitiative = async (newInitiative) => {
                     await withLoading(async () => {
                         try {
+                            const no = await nextInitiativeNo();
                             await addDoc(colRef('initiatives'), {
                                 ...pickInitiative(newInitiative),
+                                no,
                                 createdAt: serverTimestamp(),
                             });
                             await fetchInitiatives();
