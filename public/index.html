@@ -53,6 +53,13 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        /* 内容列は省略せず、列幅の中で折り返して全文を表示する */
+        .resizable-table td.col-wrap {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            word-break: break-word;
+        }
         .resizable-table th {
             position: relative;
         }
@@ -285,13 +292,13 @@
                             <tr v-for="item in paginatedInitiatives" :key="item.id"
                                 tabindex="0" @keyup.enter="openEditModal(item)" @click="openEditModal(item)" style="cursor:pointer">
                                 <td class="text-end">{{ item.no }}</td>
-                                <td :title="item.date">{{ item.date }}</td>
+                                <td :title="formatDate(item.date)">{{ formatDate(item.date) }}</td>
                                 <td :title="item.company">{{ item.company }}</td>
                                 <td :title="item.section">{{ item.section }}</td>
                                 <td :title="item.name">{{ item.name }}</td>
                                 <td :title="item.title">{{ item.title }}</td>
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
-                                <td :title="item.content">{{ item.content }}</td>
+                                <td class="col-wrap">{{ item.content }}</td>
                                 <td class="text-end">{{ formatCurrency(item.actualAmount) }}</td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
@@ -687,11 +694,39 @@
                     currentPage.value = 1;
                 });
 
+                // 実施日は YYYY-MM-DD で保持し、表示のみスラッシュ区切りにする
+                const formatDate = (value) => value ? value.replace(/-/g, '/') : '';
+
                 // --- 列幅のドラッグ調整 ---
                 const colWidths = ref({
                     no: 70, date: 110, company: 130, section: 130, name: 110, title: 180,
                     category: 130, content: 320, actualAmount: 130
                 });
+
+                // 実施日・社・課は、表示されているデータの長さに合わせて列幅を自動計算する
+                // （データが取得・更新されるたびに再計算し、ドラッグでの手動調整は次回更新まで保持する）。
+                const measureCtx = document.createElement('canvas').getContext('2d');
+                measureCtx.font = '16px "Noto Sans JP", "Inter", sans-serif';
+                const measureTextWidth = (text) => measureCtx.measureText(text ?? '').width;
+                const AUTO_FIT_COLUMNS = {
+                    date: { label: '実施日', value: item => formatDate(item.date) },
+                    company: { label: '社', value: item => item.company },
+                    section: { label: '課', value: item => item.section },
+                };
+                const CELL_PADDING = 24; // セル左右のパディング分の余白
+                const HEADER_EXTRA = 40; // ソートアイコン・リサイズハンドル分の余白
+                const autoFitColumnWidths = () => {
+                    Object.entries(AUTO_FIT_COLUMNS).forEach(([col, { label, value }]) => {
+                        let maxWidth = measureTextWidth(label) + HEADER_EXTRA;
+                        root.initiatives.value.forEach(item => {
+                            const width = measureTextWidth(value(item)) + CELL_PADDING;
+                            if (width > maxWidth) maxWidth = width;
+                        });
+                        colWidths.value[col] = Math.ceil(maxWidth);
+                    });
+                };
+                watch(root.initiatives, autoFitColumnWidths, { immediate: true });
+
                 let resizingCol = null;
                 let resizeStartX = 0;
                 let resizeStartWidth = 0;
@@ -841,7 +876,7 @@
                     const headers = ['No.', '実施日', '社', '課', '氏名', 'タイトル', '分類', '内容', '実績金額'];
                     const rows = sortedInitiatives.value.map(item => [
                         item.no,
-                        item.date,
+                        formatDate(item.date),
                         item.company,
                         item.section,
                         item.name,
@@ -879,6 +914,7 @@
                     startResize,
                     resetFilters,
                     exportCsv,
+                    formatDate,
                     formModalMode,
                     formInitiative,
                     actualAmountInput,
