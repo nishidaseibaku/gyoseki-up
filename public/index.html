@@ -285,7 +285,7 @@
                 </div>
 
                 <!-- Initiatives List -->
-                 <div class="table-responsive">
+                 <div class="table-responsive d-none d-md-block">
                     <table class="table table-hover resizable-table">
                         <thead>
                             <tr>
@@ -319,6 +319,24 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Initiatives List（スマホ幅ではテーブルの代わりにカード形式で表示する） -->
+                <div class="d-md-none">
+                    <div class="card mb-2" v-for="item in paginatedInitiatives" :key="item.id" @click="openEditModal(item)" style="cursor:pointer">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted small">No.{{ item.no }}・{{ formatDate(item.date) }}</span>
+                                <span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span>
+                            </div>
+                            <h6 class="mb-1">{{ item.title }}</h6>
+                            <div class="text-muted small mb-2">{{ item.company }} / {{ item.section }} ・ {{ item.name }}</div>
+                            <p class="mb-2 small" style="white-space: normal;">{{ item.content }}</p>
+                            <div class="text-end fw-bold">実績金額 {{ formatCurrency(item.actualAmount) }} 円</div>
+                        </div>
+                    </div>
+                    <div v-if="sortedInitiatives.length === 0" class="text-center text-muted py-4">該当するデータがありません。</div>
+                </div>
+
                 <div class="d-flex justify-content-between align-items-center mt-3" v-if="sortedInitiatives.length > 0">
                     <div class="text-muted small">
                         {{ sortedInitiatives.length }} 件中 {{ (currentPage - 1) * pageSize + 1 }}〜{{ Math.min(currentPage * pageSize, sortedInitiatives.length) }} 件を表示
