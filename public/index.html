@@ -136,6 +136,13 @@
             max-width: 420px;
             width: 100%;
         }
+        /* スマホ幅ではヘッダーのタイトルを1行に収まるサイズへ縮小する */
+        @media (max-width: 767.98px) {
+            .navbar-brand {
+                font-size: 0.95rem;
+                white-space: nowrap;
+            }
+        }
     </style>
 </head>
 <body>
@@ -239,16 +246,20 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 取り組み実績一覧
                 <div class="d-flex">
-                    <button class="btn btn-outline-secondary me-2" @click="exportCsv">
+                    <button class="btn btn-outline-secondary me-2 d-none d-md-inline-block" @click="exportCsv">
                         <i class="bi bi-download me-1"></i>CSVエクスポート
                     </button>
                     <button type="button" class="btn btn-primary" @click="openAddModal">
-                        <i class="bi bi-plus-lg me-1"></i>新規登録
+                        <i class="bi bi-plus-lg me-1"></i><span class="d-none d-md-inline">新規登録</span><span class="d-inline d-md-none">新規</span>
                     </button>
                 </div>
             </div>
             <div class="card-body">
                 <!-- Filters -->
+                <button class="btn btn-outline-secondary d-md-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#searchFilters" aria-expanded="false" aria-controls="searchFilters">
+                    <i class="bi bi-funnel me-1"></i>検索条件
+                </button>
+                <div class="collapse d-md-block" id="searchFilters">
                 <date-filter :start-col="2" :end-col="2" :button-col="2" @reset="resetFilters"></date-filter>
                 <div class="row g-3 mb-4">
                     <div class="col-md-2">
@@ -270,6 +281,7 @@
                             <option v-for="c in root.categories.value" :key="c.id" :value="c.name">{{ c.name }}</option>
                         </select>
                     </div>
+                </div>
                 </div>
 
                 <!-- Initiatives List -->
@@ -327,7 +339,7 @@
                 <!-- 取り組み実績 追加/編集 モーダル -->
                 <div v-if="formModalMode" class="modal-backdrop show" @click="closeFormModal"></div>
                 <div v-if="formModalMode" class="modal d-block" tabindex="-1" role="dialog" @click="closeFormModal">
-                    <div class="modal-dialog modal-lg" role="document" @click.stop>
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @click.stop>
                         <div class="modal-content">
                             <form @submit.prevent="submitFormModal">
                                 <div class="modal-header">
@@ -525,7 +537,7 @@
                         <!-- 氏名 追加/編集 モーダル -->
                         <div v-if="nameModalMode" class="modal-backdrop show" @click="closeNameModal"></div>
                         <div v-if="nameModalMode" class="modal d-block" tabindex="-1" role="dialog" @click="closeNameModal">
-                            <div class="modal-dialog" role="document" @click.stop>
+                            <div class="modal-dialog modal-dialog-centered" role="document" @click.stop>
                                 <div class="modal-content">
                                     <form @submit.prevent="submitNameModal">
                                         <div class="modal-header">
