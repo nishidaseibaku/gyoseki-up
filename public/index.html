@@ -296,7 +296,7 @@
                                 <td :title="item.company">{{ item.company }}</td>
                                 <td :title="item.section">{{ item.section }}</td>
                                 <td :title="item.name">{{ item.name }}</td>
-                                <td :title="item.title">{{ item.title }}</td>
+                                <td class="col-wrap">{{ item.title }}</td>
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
                                 <td class="col-wrap">{{ item.content }}</td>
                                 <td class="text-end">{{ formatCurrency(item.actualAmount) }}</td>
