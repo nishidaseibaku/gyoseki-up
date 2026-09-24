@@ -466,7 +466,7 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label for="formActualAmount" class="form-label">実績金額 (円)</label>
-                                            <clearable-input type="text" class="form-control" id="formActualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
+                                            <clearable-input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="formActualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
                                         </div>
                                     </div>
                                 </div>
@@ -995,12 +995,16 @@
                 // ref経由(inputRef.value)で値を読むと1文字分古い値を参照してしまい、
                 // 桁区切り再フォーマット時にカーソル位置がずれて数字が壊れる（例: 480000→4,8000）。
                 // event.target を直接読み書きすることでこのズレを避け、カーソル位置も桁数基準で復元する。
+                // 全角数字（IME入力時など）を半角に変換してから桁のみを残す
+                const toHalfWidthDigits = (str) => str.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+
                 const makeAmountBinding = (field, inputRef) => (event) => {
                     const target = event.target;
-                    const cursor = target.selectionStart ?? target.value.length;
-                    const digitsBeforeCursor = target.value.slice(0, cursor).replace(/\D/g, '').length;
+                    const rawValue = toHalfWidthDigits(target.value);
+                    const cursor = target.selectionStart ?? rawValue.length;
+                    const digitsBeforeCursor = rawValue.slice(0, cursor).replace(/\D/g, '').length;
 
-                    const numeric = target.value.replace(/\D/g, '');
+                    const numeric = rawValue.replace(/\D/g, '');
                     const val = numeric ? parseInt(numeric, 10) : null;
                     formInitiative.value[field] = val;
 
