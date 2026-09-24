@@ -161,7 +161,7 @@
                     <a class="navbar-brand mx-auto" href="#">
                         業績アップ取り組みダッシュボード
                     </a>
-                    <button class="btn btn-light" type="button" @click="logout" :title="(myProfile?.name || user.email || '') + ' からログアウト'">
+                    <button class="btn btn-light" type="button" @click="logout" title="ログアウト">
                         <i class="bi bi-box-arrow-right"></i>
                     </button>
                 </div>
@@ -182,12 +182,8 @@
             <div class="card login-card">
                 <div class="card-body p-4">
                     <h5 class="mb-1 text-center">業績アップ取り組みダッシュボード</h5>
-                    <p class="text-muted mb-4 text-center">ユーザー名とパスワードでログインしてください</p>
+                    <p class="text-muted mb-4 text-center">パスワードを入力してログインしてください</p>
                     <form @submit.prevent="login">
-                        <div class="mb-3">
-                            <label for="loginUsername" class="form-label">ユーザー名</label>
-                            <input id="loginUsername" type="text" class="form-control" v-model="loginUsername" autocomplete="username" required>
-                        </div>
                         <div class="mb-3">
                             <label for="loginPassword" class="form-label">パスワード</label>
                             <input id="loginPassword" type="password" class="form-control" v-model="loginPassword" autocomplete="current-password" required>
@@ -329,7 +325,7 @@
 
                 <!-- 取り組み実績 追加/編集 モーダル -->
                 <div v-if="formModalMode" class="modal-backdrop show" @click="closeFormModal"></div>
-                <div v-if="formModalMode" class="modal d-block" tabindex="-1" role="dialog">
+                <div v-if="formModalMode" class="modal d-block" tabindex="-1" role="dialog" @click="closeFormModal">
                     <div class="modal-dialog modal-lg" role="document" @click.stop>
                         <div class="modal-content">
                             <form @submit.prevent="submitFormModal">
@@ -341,11 +337,21 @@
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <label for="formName" class="form-label">氏名</label>
-                                            <tom-select id="formName" class="form-select" :options="root.names.value.map(n => n.name)" :model-value="formInitiative.name" @update:model-value="onFormNameChange" required></tom-select>
+                                            <clearable-input type="text" class="form-control" id="formName" v-model="formInitiative.name" @blur="resolveFormCompanySection(formInitiative.name)" required></clearable-input>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">所属</label>
-                                            <input type="text" class="form-control" :value="(formInitiative.company || '―') + ' / ' + (formInitiative.section || '―')" disabled>
+                                        <div class="col-md-3">
+                                            <label for="formCompany" class="form-label">社</label>
+                                            <select id="formCompany" class="form-select" v-model="formInitiative.company" @change="onFormCompanyChange" required>
+                                                <option value="" disabled>選択してください</option>
+                                                <option v-for="co in root.companies.value" :key="co.id" :value="co.name">{{ co.name }}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="formSection" class="form-label">課</label>
+                                            <select id="formSection" class="form-select" v-model="formInitiative.section" required>
+                                                <option value="" disabled>選択してください</option>
+                                                <option v-for="s in sectionsOfCompanyName(formInitiative.company)" :key="s.id" :value="s.name">{{ s.name }}</option>
+                                            </select>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="formTitle" class="form-label">タイトル</label>
@@ -487,7 +493,6 @@
                             <li class="list-group-item d-flex align-items-center" v-for="n in root.names.value" :key="n.id">
                                 <span class="me-auto">
                                     {{ n.name || n }} <span class="text-muted">（{{ sectionLabel(n.sectionId) }}）</span>
-                                    <span v-if="n.username" class="badge bg-secondary ms-1">ログイン: {{ n.username }}</span>
                                 </span>
                                 <button class="btn btn-sm btn-outline-secondary me-1" @click="openEditNameModal(n)" :disabled="root.isLoading.value">編集</button>
                                 <button class="btn btn-sm btn-outline-danger" @click="removeName(n.id)" :disabled="root.isLoading.value">削除</button>
@@ -522,7 +527,7 @@
 
                         <!-- 氏名 追加/編集 モーダル -->
                         <div v-if="nameModalMode" class="modal-backdrop show" @click="closeNameModal"></div>
-                        <div v-if="nameModalMode" class="modal d-block" tabindex="-1" role="dialog">
+                        <div v-if="nameModalMode" class="modal d-block" tabindex="-1" role="dialog" @click="closeNameModal">
                             <div class="modal-dialog" role="document" @click.stop>
                                 <div class="modal-content">
                                     <form @submit.prevent="submitNameModal">
@@ -547,20 +552,6 @@
                                                 <label class="form-label">氏名</label>
                                                 <clearable-input type="text" class="form-control" v-model="nameModalName"></clearable-input>
                                             </div>
-                                            <template v-if="nameModalMode === 'add'">
-                                                <div class="mb-3">
-                                                    <label class="form-label">ログインユーザー名（任意）</label>
-                                                    <clearable-input type="text" class="form-control" v-model="nameModalUsername" placeholder="未入力ならログイン不可"></clearable-input>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">パスワード（任意）</label>
-                                                    <input type="password" class="form-control" v-model="nameModalPassword" placeholder="6文字以上" autocomplete="new-password">
-                                                </div>
-                                            </template>
-                                            <p v-else-if="nameModalUsername" class="text-muted mb-0" style="font-size: .85rem;">
-                                                ログインユーザー名: {{ nameModalUsername }}<br>
-                                                パスワードの変更は <code>tools/manage_users.py reset-password</code> で行ってください。
-                                            </p>
                                             <div v-if="nameModalError" class="alert alert-danger py-2 mb-0 mt-3" style="font-size: .85rem;">{{ nameModalError }}</div>
                                         </div>
                                         <div class="modal-footer">
@@ -608,9 +599,9 @@
     </script>
 
     <script type="module">
-        import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import {
-            getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+            getAuth, signInWithEmailAndPassword,
             onAuthStateChanged, signOut, connectAuthEmulator
         } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import {
@@ -626,9 +617,11 @@
             messagingSenderId: "851897922219",
             appId: "1:851897922219:web:1dce2ab3c766e40e9dbdee"
         };
-        // ログイン画面の「ユーザー名」を Firebase Authentication のメール/パスワード
-        // プロバイダで扱うための疑似メールドメイン（実在するメールアドレスである必要はない）。
-        const LOGIN_EMAIL_DOMAIN = 'gyoseki-up.local';
+        // ログイン画面はID入力欄を持たず、共有のパスワードのみで認証する（ユーザーごとの
+        // 個別アカウントという概念を持たない）。内部的には Firebase Authentication の
+        // メール/パスワードプロバイダを使うため、固定の疑似メールアドレスに対してサインインする
+        // （実在するメールアドレスである必要はない。tools/manage_password.py と合わせる）。
+        const APP_LOGIN_EMAIL = 'app@gyoseki-up.local';
 
         const firebaseApp = initializeApp(firebaseConfig);
         const auth = getAuth(firebaseApp);
@@ -657,7 +650,7 @@
             setup() {
                 const root = inject('root');
                 const filters = ref({ name: '', company: '', section: '', category: '' });
-                const sortByColumn = ref('date');
+                const sortByColumn = ref('no');
                 const sortDirection = ref('desc');
 
                 const safeLower = v => (v ?? '').toString().toLowerCase();
@@ -752,18 +745,24 @@
                 const forecastAmountInput = ref('');
                 const actualAmountInput = ref('');
 
-                // 氏名の選択に応じて、その人が所属する課・社を自動的に紐づける
-                // （社・課はここでは直接選ばせず、氏名マスタの登録内容から解決する）。
+                // 氏名が氏名マスタの登録内容と一致する場合のみ、所属する課・社を自動的に
+                // 補完する（氏名は自由入力のため、一致しない場合は社・課を手動で選ぶ）。
                 const resolveFormCompanySection = (name) => {
                     const person = root.names.value.find(n => n.name === name);
-                    const section = person ? root.sections.value.find(s => s.id === person.sectionId) : null;
+                    if (!person) return;
+                    const section = root.sections.value.find(s => s.id === person.sectionId);
                     const company = section ? root.companies.value.find(co => co.id === section.companyId) : null;
                     formInitiative.value.company = company ? company.name : '';
                     formInitiative.value.section = section ? section.name : '';
                 };
-                const onFormNameChange = (name) => {
-                    formInitiative.value.name = name;
-                    resolveFormCompanySection(name);
+                // 選択した社に属する課だけを一覧する（課セレクトの絞り込みに使う）
+                const sectionsOfCompanyName = (companyName) => {
+                    const company = root.companies.value.find(co => co.name === companyName);
+                    return company ? root.sections.value.filter(s => s.companyId === company.id) : [];
+                };
+                const onFormCompanyChange = () => {
+                    const firstSection = sectionsOfCompanyName(formInitiative.value.company)[0];
+                    formInitiative.value.section = firstSection ? firstSection.name : '';
                 };
 
                 // clearable-input はラップした<input>の@inputを内部の$emitより先に発火させるため、
@@ -808,13 +807,6 @@
                     formModalMode.value = 'add';
                     formModalId.value = null;
                     formInitiative.value = defaultFormInitiative();
-                    // 新規登録: ログインユーザーに一致する氏名があれば初期選択し、
-                    // それに紐づく社・課も自動的に設定する。一致しなければ未選択のまま。
-                    const me = root.myProfile.value;
-                    if (me && me.name) {
-                        formInitiative.value.name = me.name;
-                        resolveFormCompanySection(me.name);
-                    }
                     syncAmountInputs();
                 };
                 const openEditModal = (item) => {
@@ -915,7 +907,9 @@
                     actualAmountInput,
                     handleForecastAmountInput,
                     handleActualAmountInput,
-                    onFormNameChange,
+                    resolveFormCompanySection,
+                    sectionsOfCompanyName,
+                    onFormCompanyChange,
                     openAddModal,
                     openEditModal,
                     openCopyModal,
@@ -963,8 +957,6 @@
                   const nameModalCompanyId = ref('');
                   const nameModalSectionId = ref('');
                   const nameModalName = ref('');
-                  const nameModalUsername = ref('');
-                  const nameModalPassword = ref('');
                   const nameModalError = ref('');
 
                   const openAddNameModal = () => {
@@ -973,8 +965,6 @@
                       nameModalCompanyId.value = root.companies.value[0]?.id || '';
                       nameModalSectionId.value = firstSectionOf(nameModalCompanyId.value);
                       nameModalName.value = '';
-                      nameModalUsername.value = '';
-                      nameModalPassword.value = '';
                       nameModalError.value = '';
                   };
                   const openEditNameModal = (n) => {
@@ -984,8 +974,6 @@
                       nameModalCompanyId.value = sec ? sec.companyId : '';
                       nameModalSectionId.value = n.sectionId;
                       nameModalName.value = n.name || n;
-                      nameModalUsername.value = n.username || '';
-                      nameModalPassword.value = '';
                       nameModalError.value = '';
                   };
                   const closeNameModal = () => {
@@ -997,16 +985,8 @@
                   const submitNameModal = async () => {
                       if (!nameModalName.value || !nameModalSectionId.value) return;
                       if (nameModalMode.value === 'add') {
-                          if (nameModalUsername.value && !nameModalPassword.value) {
-                              nameModalError.value = 'パスワードを入力してください。';
-                              return;
-                          }
-                          if (!nameModalUsername.value && nameModalPassword.value) {
-                              nameModalError.value = 'ユーザー名を入力してください。';
-                              return;
-                          }
                           nameModalError.value = '';
-                          const result = await root.addNameWithLogin(nameModalName.value, nameModalSectionId.value, nameModalUsername.value, nameModalPassword.value);
+                          const result = await root.addName(nameModalName.value, nameModalSectionId.value);
                           if (result.ok) {
                               closeNameModal();
                           } else {
@@ -1148,8 +1128,6 @@
                       nameModalCompanyId,
                       nameModalSectionId,
                       nameModalName,
-                      nameModalUsername,
-                      nameModalPassword,
                       nameModalError,
                       openAddNameModal,
                       openEditNameModal,
@@ -1197,7 +1175,6 @@
                 const user = ref(null);
                 const authReady = ref(false);
                 const authError = ref('');
-                const loginUsername = ref('');
                 const loginPassword = ref('');
 
                 const initiatives = ref([]);
@@ -1210,11 +1187,6 @@
                 const defaultEnd = ref('');
                 const filterStart = ref('');
                 const filterEnd = ref('');
-
-                // ログイン中ユーザーのプロフィール（氏名。新規登録の初期値に使う）。
-                // users/{uid} はアカウント作成時に管理者スクリプト(tools/manage_users.py)が書き込む。
-                const myProfileDoc = ref(null);
-                const myProfile = computed(() => myProfileDoc.value);
 
                 const loadingCount = ref(0);
                 const isLoading = computed(() => loadingCount.value > 0);
@@ -1285,20 +1257,18 @@
                             if (!filterStart.value) filterStart.value = defaultStart.value;
                             if (!filterEnd.value) filterEnd.value = defaultEnd.value;
 
-                            const [inits, cos, secs, nms, cats, profileSnap] = await Promise.all([
+                            const [inits, cos, secs, nms, cats] = await Promise.all([
                                 queryInitiatives(filterStart.value, filterEnd.value),
                                 loadCollection('companies'),
                                 loadCollection('sections'),
                                 loadCollection('names'),
                                 loadCollection('categories'),
-                                user.value ? getDoc(doc(db, 'users', user.value.uid)) : null,
                             ]);
                             initiatives.value = inits;
                             companies.value = cos;
                             sections.value = secs;
                             names.value = nms;
                             categories.value = cats;
-                            myProfileDoc.value = profileSnap && profileSnap.exists() ? profileSnap.data() : null;
                         } catch (error) {
                             console.error('Error fetching bootstrap data:', error);
                         }
@@ -1509,54 +1479,12 @@
                     return deleteMasterItem('sections', id, fetchSections);
                 };
 
-                // 氏名の追加と同時に、任意でログインアカウント（ユーザー名/パスワード）も作成する。
-                // メインの Auth セッション（今操作している管理者自身）を維持したまま新規アカウントを
-                // 作れるよう、一時的な別 Firebase App インスタンス上で作成する。
-                const createLoginAccount = async (username, password, displayName) => {
-                    const secondaryApp = initializeApp(firebaseConfig, `secondary-${Math.random().toString(36).slice(2)}`);
-                    const secondaryAuth = getAuth(secondaryApp);
-                    if (useEmulators) {
-                        connectAuthEmulator(secondaryAuth, `http://${location.hostname}:9099`, { disableWarnings: true });
-                    }
-                    try {
-                        const pseudoEmail = `${username.trim().toLowerCase()}@${LOGIN_EMAIL_DOMAIN}`;
-                        const cred = await createUserWithEmailAndPassword(secondaryAuth, pseudoEmail, password);
-                        await updateProfile(cred.user, { displayName });
-                        await setDoc(doc(db, 'users', cred.user.uid), {
-                            username: username.trim().toLowerCase(),
-                            name: displayName,
-                        });
-                        return cred.user.uid;
-                    } finally {
-                        try { await signOut(secondaryAuth); } catch (e) { /* 無視 */ }
-                        await deleteApp(secondaryApp);
-                    }
-                };
-
-                const describeAccountError = (error) => {
-                    if (error.code === 'auth/email-already-in-use') return 'そのユーザー名は既に使われています。';
-                    if (error.code === 'auth/weak-password') return 'パスワードは6文字以上にしてください。';
-                    if (error.code === 'auth/invalid-email') return 'ユーザー名に使用できない文字が含まれています。';
-                    return 'ログインアカウントの作成に失敗しました: ' + (error.message || error.code || error);
-                };
-
-                // username を指定した場合のみログインアカウントも作成する（省略可）。
-                const addNameWithLogin = (name, sectionId, username, password) => withLoading(async () => {
+                const addName = (name, sectionId) => withLoading(async () => {
                     try {
                         if (names.value.some(n => n.name === name && n.sectionId === sectionId)) {
                             return { ok: false, message: '既に登録されています: ' + name };
                         }
-                        const data = { name, sectionId };
-                        if (username) {
-                            try {
-                                await createLoginAccount(username, password, name);
-                            } catch (error) {
-                                console.error('Error creating login account:', error);
-                                return { ok: false, message: describeAccountError(error) };
-                            }
-                            data.username = username.trim().toLowerCase();
-                        }
-                        await addDoc(colRef('names'), data);
+                        await addDoc(colRef('names'), { name, sectionId });
                         await fetchNames();
                         return { ok: true };
                     } catch (error) {
@@ -1626,16 +1554,14 @@
                 // --- Auth ---
                 const login = async () => {
                     authError.value = '';
-                    const username = loginUsername.value.trim();
-                    if (!username || !loginPassword.value) return;
+                    if (!loginPassword.value) return;
                     try {
-                        const pseudoEmail = `${username.toLowerCase()}@${LOGIN_EMAIL_DOMAIN}`;
-                        await signInWithEmailAndPassword(auth, pseudoEmail, loginPassword.value);
+                        await signInWithEmailAndPassword(auth, APP_LOGIN_EMAIL, loginPassword.value);
                         loginPassword.value = '';
                     } catch (error) {
                         console.error('Login error:', error);
                         if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                            authError.value = 'ユーザー名またはパスワードが正しくありません。';
+                            authError.value = 'パスワードが正しくありません。';
                         } else {
                             authError.value = 'ログインに失敗しました: ' + (error.message || error.code || error);
                         }
@@ -1657,7 +1583,6 @@
                         sections.value = [];
                         names.value = [];
                         categories.value = [];
-                        myProfileDoc.value = null;
                     }
                 });
 
@@ -1683,7 +1608,7 @@
                       fetchCategories,
                       addCompany,
                       addSection,
-                      addNameWithLogin,
+                      addName,
                       importNames,
                       addCategory,
                       updateCompany,
@@ -1698,11 +1623,10 @@
                       updateCategoryGoals,
                       formatCurrency,
                       getCategoryClass,
-                      isLoading,
-                      myProfile
+                      isLoading
                   });
 
-                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, myProfile, authReady, authError, loginUsername, loginPassword, login, logout };
+                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, authReady, authError, loginPassword, login, logout };
             }
         });
 
