@@ -671,6 +671,23 @@
         const SETTINGS_REF = () => doc(db, 'settings', 'app');
         const DEFAULT_CATEGORIES = ['粗利率改善', '固定費コントロール', '粗利額アップ'];
 
+        // 新規登録時の氏名・社・課の初期値として、このブラウザで最後に登録した内容を
+        // 復元するための保存先（端末ごとのローカルな利便性のためlocalStorageを使う）。
+        const LAST_ENTRY_KEY = 'gyoseki-up:lastInitiativeEntry';
+        const loadLastEntry = () => {
+            try {
+                const raw = localStorage.getItem(LAST_ENTRY_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        };
+        const saveLastEntry = (entry) => {
+            try {
+                localStorage.setItem(LAST_ENTRY_KEY, JSON.stringify(entry));
+            } catch (e) { /* 無視 */ }
+        };
+
         // --- Components ---
         const InitiativeList = {
             template: '#initiative-list-template',
@@ -785,16 +802,19 @@
                 // --- 取り組み実績 追加/編集モーダル ---
                 const formModalMode = ref(null); // null | 'add' | 'edit'
                 const formModalId = ref(null);
-                const defaultFormInitiative = () => ({
-                    name: '',
-                    company: '',
-                    section: '',
-                    title: '',
-                    date: new Date().toISOString().slice(0, 10),
-                    category: root.categories.value[0]?.name || '',
-                    content: '',
-                    actualAmount: null,
-                });
+                const defaultFormInitiative = () => {
+                    const last = loadLastEntry();
+                    return {
+                        name: last?.name || '',
+                        company: last?.company || '',
+                        section: last?.section || '',
+                        title: '',
+                        date: new Date().toISOString().slice(0, 10),
+                        category: root.categories.value[0]?.name || '',
+                        content: '',
+                        actualAmount: null,
+                    };
+                };
                 const formInitiative = ref(defaultFormInitiative());
                 const actualAmountInput = ref('');
 
@@ -874,6 +894,12 @@
                         await root.updateInitiative(formModalId.value, formInitiative.value);
                     } else {
                         await root.submitInitiative(formInitiative.value);
+                        // 次回の新規登録で氏名・社・課を復元できるよう、このブラウザに記憶しておく
+                        saveLastEntry({
+                            name: formInitiative.value.name,
+                            company: formInitiative.value.company,
+                            section: formInitiative.value.section,
+                        });
                     }
                     closeFormModal();
                 };
