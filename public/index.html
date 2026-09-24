@@ -143,6 +143,42 @@
                 white-space: nowrap;
             }
         }
+        /* 初回チュートリアル（スポットライト方式のガイド） */
+        .tutorial-mask {
+            position: fixed;
+            background: rgba(15, 23, 42, 0.6);
+            z-index: 2100;
+        }
+        .tutorial-highlight {
+            position: fixed;
+            z-index: 2101;
+            border-radius: 8px;
+            box-shadow: 0 0 0 3px #0d6efd, 0 0 18px rgba(13, 110, 253, .6);
+            pointer-events: none;
+        }
+        .tutorial-popover {
+            position: fixed;
+            z-index: 2102;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+            padding: 1rem 1.15rem;
+            width: min(90vw, 340px);
+        }
+        .tutorial-popover h6 {
+            font-weight: 700;
+            margin-bottom: .5rem;
+        }
+        .tutorial-popover p {
+            font-size: .9rem;
+            margin-bottom: .5rem;
+            white-space: pre-line;
+        }
+        .tutorial-step-badge {
+            font-size: .75rem;
+            color: #6c757d;
+            margin-bottom: .35rem;
+        }
     </style>
 </head>
 <body>
@@ -161,6 +197,9 @@
                         </li>
                         <li class="nav-item">
                             <router-link to="/settings" class="nav-link" active-class="active" @click="hideOffcanvas"><i class="bi bi-gear me-2"></i>設定</router-link>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" @click.prevent="replayTutorial"><i class="bi bi-question-circle me-2"></i>チュートリアル</a>
                         </li>
                     </ul>
                 </div>
@@ -214,6 +253,29 @@
                 <div class="spinner-border text-primary" role="status" aria-label="読み込み中"></div>
             </div>
         </div>
+
+        <!-- 初回チュートリアル -->
+        <template v-if="tutorial.active">
+            <div class="tutorial-mask" :style="tutorial.maskStyle.top"></div>
+            <div class="tutorial-mask" :style="tutorial.maskStyle.bottom"></div>
+            <div class="tutorial-mask" :style="tutorial.maskStyle.left"></div>
+            <div class="tutorial-mask" :style="tutorial.maskStyle.right"></div>
+            <div class="tutorial-highlight" v-if="tutorial.hasTarget" :style="tutorial.highlightStyle"></div>
+            <div class="tutorial-popover" ref="tutorialPopoverRef" :style="tutorial.popoverStyle">
+                <div class="tutorial-step-badge">ステップ {{ tutorial.stepIndex + 1 }} / {{ TUTORIAL_STEPS.length }}</div>
+                <h6>{{ tutorialCurrentStep.title }}</h6>
+                <p>{{ tutorialCurrentStep.description }}</p>
+                <div v-if="tutorialCurrentStep.action === 'click'" class="small text-primary fw-bold mb-2">
+                    <i class="bi bi-hand-index-thumb me-1"></i>ハイライトされた箇所をクリックして進みます
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <button type="button" class="btn btn-sm btn-link text-muted p-0" @click="skipTutorial">スキップ</button>
+                    <button v-if="tutorialCurrentStep.action !== 'click'" type="button" class="btn btn-sm btn-primary" @click="nextTutorialStep">
+                        {{ tutorialIsLast ? '閉じる' : '次へ' }}
+                    </button>
+                </div>
+            </div>
+        </template>
     </div>
 
     <!-- Vue.js, Vue Router, Bootstrap JS from CDN -->
@@ -249,7 +311,7 @@
                     <button class="btn btn-outline-secondary me-2 d-none d-md-inline-block" @click="exportCsv">
                         <i class="bi bi-download me-1"></i>CSVエクスポート
                     </button>
-                    <button type="button" class="btn btn-primary" @click="openAddModal">
+                    <button id="tutorialAddBtn" type="button" class="btn btn-primary" @click="openAddModal">
                         <i class="bi bi-plus-lg me-1"></i><span class="d-none d-md-inline">新規登録</span><span class="d-inline d-md-none">新規</span>
                     </button>
                 </div>
@@ -285,7 +347,7 @@
                 </div>
 
                 <!-- Initiatives List -->
-                 <div class="table-responsive d-none d-md-block">
+                 <div id="tutorialTable" class="table-responsive d-none d-md-block">
                     <table class="table table-hover resizable-table">
                         <thead>
                             <tr>
@@ -321,7 +383,7 @@
                 </div>
 
                 <!-- Initiatives List（スマホ幅ではテーブルの代わりにカード形式で表示する） -->
-                <div class="d-md-none">
+                <div id="tutorialCardList" class="d-md-none">
                     <div class="card mb-2" v-for="item in paginatedInitiatives" :key="item.id" @click="openEditModal(item)" style="cursor:pointer">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -410,7 +472,7 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-danger me-auto" v-if="formModalMode === 'edit'" @click="removeFormModal" :disabled="root.isLoading.value">削除</button>
-                                    <button type="button" class="btn btn-secondary" @click="closeFormModal">キャンセル</button>
+                                    <button id="tutorialCancelBtn" type="button" class="btn btn-secondary" @click="closeFormModal">キャンセル</button>
                                     <button type="submit" class="btn btn-primary" :disabled="root.isLoading.value">{{ formModalMode === 'edit' ? '更新する' : '登録する' }}</button>
                                 </div>
                             </form>
@@ -664,7 +726,7 @@
             connectFirestoreEmulator(db, location.hostname, 8080);
         }
 
-        const { createApp, ref, computed, onMounted, watch, provide, inject, onBeforeUnmount, toRefs } = Vue;
+        const { createApp, ref, reactive, computed, onMounted, watch, provide, inject, onBeforeUnmount, nextTick, toRefs } = Vue;
         const { createRouter, createWebHashHistory } = VueRouter;
 
         const byName = (a, b) => (a.name || '').localeCompare(b.name || '', 'ja');
@@ -686,6 +748,97 @@
             try {
                 localStorage.setItem(LAST_ENTRY_KEY, JSON.stringify(entry));
             } catch (e) { /* 無視 */ }
+        };
+
+        // --- 初回チュートリアル ---
+        const TUTORIAL_SEEN_KEY = 'gyoseki-up:tutorialSeen';
+        const TUTORIAL_STEPS = [
+            { title: 'ようこそ', description: '業績アップ取り組みダッシュボードの基本的な使い方をご案内します。実際の画面を操作しながら進めましょう。', placement: 'center' },
+            { selector: '#searchFilters', title: '検索条件で絞り込み', description: '氏名・社・課・分類や期間を指定して、一覧に表示する実績を絞り込めます。', placement: 'bottom' },
+            { selector: '#tutorialAddBtn', title: '新しい実績を登録', description: 'ハイライトされた「新規登録」ボタンをクリックして、登録フォームを開いてみましょう。', placement: 'bottom', action: 'click' },
+            { selector: '#formName', title: '氏名を入力', description: '実績を登録する担当者の氏名を入力します。登録済みの氏名を入力すると、社・課が自動的に補完されます。', placement: 'bottom' },
+            { selector: '#formCompany', title: '社を選択', description: '担当者が所属する社を選択します。', placement: 'bottom' },
+            { selector: '#formSection', title: '課を選択', description: '担当者が所属する課を選択します。選択した社に応じて候補が絞り込まれます。', placement: 'bottom' },
+            { selector: '#formTitle', title: 'タイトルを入力', description: '取り組みの内容が一目でわかる、簡潔なタイトルを入力します。', placement: 'bottom' },
+            { selector: '#formDate', title: '実施日を選択', description: '取り組みを実施した日付を選択します。', placement: 'bottom' },
+            { selector: '#formCategory', title: '分類を選択', description: '取り組みの分類を選択します。', placement: 'bottom' },
+            { selector: '#formContent', title: '具体的な内容を入力', description: '取り組みの具体的な内容を記入します。', placement: 'top' },
+            { selector: '#formActualAmount', title: '実績金額を入力', description: '取り組みによる実績金額を円単位で入力します。数字を入力すると自動的に桁区切りで表示されます。', placement: 'top' },
+            { selector: '#tutorialCancelBtn', title: '登録・キャンセル', description: '入力が終わったら「登録する」で保存できます。ここでは説明のため、ハイライトされた「キャンセル」をクリックしてフォームを閉じてみましょう。', placement: 'top', action: 'click' },
+            { selector: ['#tutorialTable', '#tutorialCardList'], title: '実績一覧テーブル', description: '登録した実績が一覧表示されます。列見出しをクリックすると並び替え、見出しの境界線をドラッグすると列幅を調整できます。', placement: 'top' },
+            { title: 'チュートリアルは以上です', description: '基本的な使い方のご案内は以上です。この内容はメニューの「チュートリアル」からいつでも見返せます。', placement: 'center' },
+        ];
+
+        // 対象要素が見つかる（かつ表示されている）まで一定時間ポーリングする。
+        // モーダル表示などVueの再描画完了を待つ用途と、スマホ幅で非表示の要素を
+        // スキップする判定を兼ねる。
+        // selector は単一のCSSセレクタのほか、候補の配列も受け付ける
+        // （例: デスクトップ表とスマホ用カード一覧のように、画面幅に応じて
+        // どちらか一方だけが表示される要素を1つのステップで扱う場合に使う）。
+        const waitForElement = (selector, { timeout = 1200, interval = 60 } = {}) => new Promise(resolve => {
+            const selectors = Array.isArray(selector) ? selector : [selector];
+            const findVisible = () => {
+                for (const s of selectors) {
+                    const el = document.querySelector(s);
+                    if (el && el.offsetParent !== null) return el;
+                }
+                return null;
+            };
+            const start = Date.now();
+            const check = () => {
+                const el = findVisible();
+                if (el) {
+                    resolve(el);
+                } else if (Date.now() - start > timeout) {
+                    resolve(null);
+                } else {
+                    setTimeout(check, interval);
+                }
+            };
+            check();
+        });
+
+        // ハイライト対象の周囲だけを避けて画面を覆う4枚の暗幕の位置・サイズを計算する
+        const computeTutorialMaskStyle = (rect) => {
+            if (!rect) {
+                return {
+                    top: { top: '0', left: '0', width: '100vw', height: '100vh' },
+                    bottom: { display: 'none' },
+                    left: { display: 'none' },
+                    right: { display: 'none' },
+                };
+            }
+            const pad = 6;
+            const top = Math.max(rect.top - pad, 0);
+            const bottom = rect.bottom + pad;
+            const left = Math.max(rect.left - pad, 0);
+            const right = rect.right + pad;
+            return {
+                top: { top: '0px', left: '0px', width: '100vw', height: `${top}px` },
+                bottom: { top: `${bottom}px`, left: '0px', width: '100vw', height: `${Math.max(window.innerHeight - bottom, 0)}px` },
+                left: { top: `${top}px`, left: '0px', width: `${left}px`, height: `${Math.max(bottom - top, 0)}px` },
+                right: { top: `${top}px`, left: `${right}px`, width: `${Math.max(window.innerWidth - right, 0)}px`, height: `${Math.max(bottom - top, 0)}px` },
+            };
+        };
+
+        // 吹き出しをハイライト対象の上下どちらに出すか決め、画面外にはみ出さないよう調整する
+        const computeTutorialPopoverStyle = (rect, placement, popoverEl) => {
+            const margin = 14;
+            const pw = popoverEl.offsetWidth;
+            const ph = popoverEl.offsetHeight;
+            let top, left;
+            if (!rect) {
+                top = window.innerHeight / 2 - ph / 2;
+                left = window.innerWidth / 2 - pw / 2;
+            } else {
+                left = rect.left + rect.width / 2 - pw / 2;
+                top = placement === 'top' ? rect.top - ph - margin : rect.bottom + margin;
+                if (top < 8) top = rect.bottom + margin;
+                if (top + ph > window.innerHeight - 8) top = rect.top - ph - margin;
+            }
+            left = Math.min(Math.max(left, 8), Math.max(window.innerWidth - pw - 8, 8));
+            top = Math.min(Math.max(top, 8), Math.max(window.innerHeight - ph - 8, 8));
+            return { top: `${top}px`, left: `${left}px` };
         };
 
         // --- Components ---
@@ -1616,6 +1769,102 @@
                     instance.hide();
                 };
 
+                // --- 初回チュートリアル ---
+                const tutorial = reactive({
+                    active: false,
+                    stepIndex: 0,
+                    hasTarget: false,
+                    highlightStyle: {},
+                    maskStyle: computeTutorialMaskStyle(null),
+                    popoverStyle: {},
+                });
+                const tutorialPopoverRef = ref(null);
+                const tutorialCurrentStep = computed(() => TUTORIAL_STEPS[tutorial.stepIndex] || {});
+                const tutorialIsLast = computed(() => tutorial.stepIndex === TUTORIAL_STEPS.length - 1);
+                let tutorialActionCleanup = null;
+                const clearTutorialAction = () => {
+                    if (tutorialActionCleanup) {
+                        tutorialActionCleanup();
+                        tutorialActionCleanup = null;
+                    }
+                };
+                const onTutorialReflow = () => {
+                    if (tutorial.active) renderTutorialStep();
+                };
+                const endTutorial = () => {
+                    clearTutorialAction();
+                    tutorial.active = false;
+                    window.removeEventListener('resize', onTutorialReflow);
+                    window.removeEventListener('scroll', onTutorialReflow, true);
+                    try { localStorage.setItem(TUTORIAL_SEEN_KEY, '1'); } catch (e) { /* 無視 */ }
+                };
+                const renderTutorialStep = async () => {
+                    const step = TUTORIAL_STEPS[tutorial.stepIndex];
+                    let el = null;
+                    if (step.selector) {
+                        el = await waitForElement(step.selector);
+                        if (!tutorial.active) return; // 待機中にスキップ/終了された
+                        if (!el) {
+                            goToTutorialStep(tutorial.stepIndex + 1);
+                            return;
+                        }
+                        el.scrollIntoView({ block: 'center', behavior: 'auto' });
+                        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                    }
+                    const rect = el ? el.getBoundingClientRect() : null;
+                    tutorial.hasTarget = !!rect;
+                    if (rect) {
+                        const pad = 6;
+                        tutorial.highlightStyle = {
+                            top: `${rect.top - pad}px`,
+                            left: `${rect.left - pad}px`,
+                            width: `${rect.width + pad * 2}px`,
+                            height: `${rect.height + pad * 2}px`,
+                        };
+                    }
+                    tutorial.maskStyle = computeTutorialMaskStyle(rect);
+                    await nextTick();
+                    if (tutorialPopoverRef.value) {
+                        tutorial.popoverStyle = computeTutorialPopoverStyle(rect, step.placement, tutorialPopoverRef.value);
+                    }
+                    clearTutorialAction();
+                    if (step.action === 'click' && el) {
+                        const handler = () => goToTutorialStep(tutorial.stepIndex + 1);
+                        el.addEventListener('click', handler, { once: true });
+                        tutorialActionCleanup = () => el.removeEventListener('click', handler);
+                    }
+                };
+                const goToTutorialStep = (index) => {
+                    if (index >= TUTORIAL_STEPS.length) {
+                        endTutorial();
+                        return;
+                    }
+                    tutorial.stepIndex = index;
+                    renderTutorialStep();
+                };
+                const startTutorial = async () => {
+                    if (router.currentRoute.value.path !== '/') {
+                        await router.push('/');
+                        await nextTick();
+                    }
+                    tutorial.active = true;
+                    tutorial.stepIndex = 0;
+                    window.addEventListener('resize', onTutorialReflow);
+                    window.addEventListener('scroll', onTutorialReflow, true);
+                    await nextTick();
+                    renderTutorialStep();
+                };
+                const skipTutorial = () => endTutorial();
+                const nextTutorialStep = () => goToTutorialStep(tutorial.stepIndex + 1);
+                const replayTutorial = () => {
+                    const el = document.getElementById('offcanvasNav');
+                    if (el) {
+                        el.addEventListener('hidden.bs.offcanvas', () => startTutorial(), { once: true });
+                    }
+                    hideOffcanvas();
+                    if (!el) startTutorial();
+                };
+
                 // --- Auth ---
                 const login = async () => {
                     authError.value = '';
@@ -1642,6 +1891,11 @@
                     authReady.value = true;
                     if (u) {
                         await fetchBootstrap();
+                        try {
+                            if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) {
+                                setTimeout(() => startTutorial(), 400);
+                            }
+                        } catch (e) { /* 無視 */ }
                     } else {
                         initiatives.value = [];
                         companies.value = [];
@@ -1691,7 +1945,12 @@
                       isLoading
                   });
 
-                  return { initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives, user, authReady, authError, loginPassword, login, logout };
+                  return {
+                      initiatives, hideOffcanvas, isLoading, filterStart, filterEnd, fetchInitiatives,
+                      user, authReady, authError, loginPassword, login, logout,
+                      tutorial, tutorialCurrentStep, tutorialIsLast, tutorialPopoverRef,
+                      TUTORIAL_STEPS, skipTutorial, nextTutorialStep, replayTutorial
+                  };
             }
         });
 
