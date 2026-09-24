@@ -278,9 +278,7 @@
                                 <th scope="col" @click="sortBy('title')" class="th-sortable" :style="{width: colWidths.title + 'px'}">タイトル <i :class="sortIcon('title')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('title', $event)" @click.stop></span></th>
                                 <th scope="col" @click="sortBy('category')" class="th-sortable" :style="{width: colWidths.category + 'px'}">分類 <i :class="sortIcon('category')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('category', $event)" @click.stop></span></th>
                                 <th scope="col" :style="{width: colWidths.content + 'px'}">内容<span class="col-resizer" @mousedown.stop.prevent="startResize('content', $event)" @click.stop></span></th>
-                                <th scope="col" @click="sortBy('forecastAmount')" class="th-sortable text-end" :style="{width: colWidths.forecastAmount + 'px'}">見込み金額(円) <i :class="sortIcon('forecastAmount')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('forecastAmount', $event)" @click.stop></span></th>
                                 <th scope="col" @click="sortBy('actualAmount')" class="th-sortable text-end" :style="{width: colWidths.actualAmount + 'px'}">実績金額(円) <i :class="sortIcon('actualAmount')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('actualAmount', $event)" @click.stop></span></th>
-                                <th :style="{width: colWidths.actions + 'px'}">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -294,14 +292,10 @@
                                 <td :title="item.title">{{ item.title }}</td>
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
                                 <td :title="item.content">{{ item.content }}</td>
-                                <td class="text-end">{{ formatCurrency(item.forecastAmount) }}</td>
                                 <td class="text-end">{{ formatCurrency(item.actualAmount) }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-secondary" @click.stop="openCopyModal(item)">複写</button>
-                                </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
-                                <td colspan="11" class="text-center">該当するデータがありません。</td>
+                                <td colspan="9" class="text-center">該当するデータがありません。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -370,10 +364,6 @@
                                         <div class="col-12">
                                             <label for="formContent" class="form-label">具体的な内容</label>
                                             <textarea class="form-control" id="formContent" rows="3" v-model="formInitiative.content" required></textarea>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="formForecastAmount" class="form-label">見込み金額 (円)</label>
-                                            <clearable-input type="text" class="form-control" id="formForecastAmount" v-model="forecastAmountInput" @input="handleForecastAmountInput" required></clearable-input>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="formActualAmount" class="form-label">実績金額 (円)</label>
@@ -700,7 +690,7 @@
                 // --- 列幅のドラッグ調整 ---
                 const colWidths = ref({
                     no: 70, date: 110, company: 130, section: 130, name: 110, title: 180,
-                    category: 130, content: 320, forecastAmount: 130, actualAmount: 130, actions: 90
+                    category: 130, content: 320, actualAmount: 130
                 });
                 let resizingCol = null;
                 let resizeStartX = 0;
@@ -738,11 +728,9 @@
                     date: new Date().toISOString().slice(0, 10),
                     category: root.categories.value[0]?.name || '',
                     content: '',
-                    forecastAmount: null,
                     actualAmount: null,
                 });
                 const formInitiative = ref(defaultFormInitiative());
-                const forecastAmountInput = ref('');
                 const actualAmountInput = ref('');
 
                 // 氏名が氏名マスタの登録内容と一致する場合のみ、所属する課・社を自動的に
@@ -793,13 +781,11 @@
                     }
                     target.setSelectionRange(newCursor, newCursor);
                 };
-                const handleForecastAmountInput = makeAmountBinding('forecastAmount', forecastAmountInput);
                 const handleActualAmountInput = makeAmountBinding('actualAmount', actualAmountInput);
 
                 // モーダルを開くたびに金額表示欄を現在値に合わせて明示的に同期する
                 // （formInitiativeは使い回すrefのため、値が前回と偶然同じだとwatch任せでは更新されないことがある）
                 const syncAmountInputs = () => {
-                    forecastAmountInput.value = formInitiative.value.forecastAmount != null ? root.formatCurrency(formInitiative.value.forecastAmount) : '';
                     actualAmountInput.value = formInitiative.value.actualAmount != null ? root.formatCurrency(formInitiative.value.actualAmount) : '';
                 };
 
@@ -813,13 +799,6 @@
                     formModalMode.value = 'edit';
                     formModalId.value = item.id;
                     formInitiative.value = { ...item };
-                    syncAmountInputs();
-                };
-                const openCopyModal = (item) => {
-                    formModalMode.value = 'add';
-                    formModalId.value = null;
-                    const { id, ...rest } = item;
-                    formInitiative.value = { ...rest };
                     syncAmountInputs();
                 };
                 const closeFormModal = () => {
@@ -859,7 +838,7 @@
                 };
 
                 const exportCsv = () => {
-                    const headers = ['No.', '実施日', '社', '課', '氏名', 'タイトル', '分類', '内容', '見込み金額', '実績金額'];
+                    const headers = ['No.', '実施日', '社', '課', '氏名', 'タイトル', '分類', '内容', '実績金額'];
                     const rows = sortedInitiatives.value.map(item => [
                         item.no,
                         item.date,
@@ -869,7 +848,6 @@
                         item.title,
                         item.category,
                         item.content,
-                        item.forecastAmount,
                         item.actualAmount
                     ]);
                     const csvContent = [headers, ...rows]
@@ -903,16 +881,13 @@
                     exportCsv,
                     formModalMode,
                     formInitiative,
-                    forecastAmountInput,
                     actualAmountInput,
-                    handleForecastAmountInput,
                     handleActualAmountInput,
                     resolveFormCompanySection,
                     sectionsOfCompanyName,
                     onFormCompanyChange,
                     openAddModal,
                     openEditModal,
-                    openCopyModal,
                     closeFormModal,
                     submitFormModal,
                     removeFormModal,
@@ -1219,7 +1194,6 @@
                         return {
                             id: d.id,
                             ...data,
-                            forecastAmount: data.forecastAmount ?? 0,
                             actualAmount: data.actualAmount ?? data.amount ?? 0,
                         };
                     });
@@ -1362,7 +1336,6 @@
                     date: data.date,
                     category: data.category,
                     content: data.content,
-                    forecastAmount: parseInt(data.forecastAmount, 10) || 0,
                     actualAmount: parseInt(data.actualAmount, 10) || 0,
                 });
 
