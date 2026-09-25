@@ -46,6 +46,10 @@
         }
         .resizable-table {
             table-layout: fixed;
+            /* border-collapse: collapse のままだとセルのbox-shadowが描画されないため、
+               固定列の影を表示するには separate にする必要がある（罫線は片側だけなので二重線にはならない）。 */
+            border-collapse: separate;
+            border-spacing: 0;
         }
         .resizable-table th,
         .resizable-table td {
@@ -62,6 +66,151 @@
         }
         .resizable-table th {
             position: relative;
+        }
+        /* リアクション・コメント列は横スクロールしても常に右端に表示されるよう固定する */
+        .resizable-table th.col-sticky-right,
+        .resizable-table td.col-sticky-right {
+            position: sticky;
+            right: 0;
+            background-color: #fff;
+        }
+        .resizable-table th.col-sticky-right {
+            z-index: 2;
+        }
+        .resizable-table td.col-sticky-right {
+            z-index: 1;
+        }
+        /* この列の下に隠れている列がある間だけ影を出し、固定されていることを分かりやすくする。
+           box-shadowはぼかしの分だけ上下にもにじんでしまうため、セルの高さぴったりに収まる
+           グラデーションの疑似要素を左側にだけ重ねる方式にする。 */
+        #tutorialTable.has-hidden-columns .resizable-table th.col-sticky-right::before,
+        #tutorialTable.has-hidden-columns .resizable-table td.col-sticky-right::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: -8px;
+            width: 8px;
+            background: linear-gradient(to left, rgba(0, 0, 0, 0.12), transparent);
+            pointer-events: none;
+        }
+        /* リアクションボタンを折り返して表示できるようにする */
+        .resizable-table td.col-sticky-right {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        .table-hover tbody tr:hover td.col-sticky-right {
+            background-color: #e9ecef;
+        }
+        /* リアクションのアイコンは枠・背景なしのフラットな見た目にする（押した状態は色のみで示す） */
+        .reaction-btn {
+            border: none;
+            background: transparent;
+            color: #6c757d;
+        }
+        .reaction-btn:hover:not(:disabled),
+        .reaction-btn:focus {
+            background: transparent;
+            color: #495057;
+        }
+        .reaction-btn.active {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+        /* リアクション選択ポップアップを吹き出し（トークバブル）の形にする */
+        .reaction-picker-popup {
+            border-radius: 0.75rem;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+        }
+        .reaction-picker-popup::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 16px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid #fff;
+            filter: drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.08));
+        }
+        /* 絵文字は普段は少しグレーがかった控えめな見た目にし、ホバーではっきり表示する
+           （すでに押したリアクションは常にはっきり表示したままにする） */
+        .reaction-picker-popup .btn {
+            font-size: 1.25rem;
+            filter: grayscale(0.7) opacity(0.6);
+            transition: filter 0.15s ease;
+        }
+        .reaction-picker-popup .btn:hover:not(:disabled),
+        .reaction-picker-popup .btn.active {
+            filter: none;
+        }
+        /* コメント欄をチャットアプリ風の見た目にする */
+        .chat-thread {
+            background-color: #f0f2f5;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+        }
+        .chat-message {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .chat-message + .chat-message {
+            margin-top: 0.5rem;
+        }
+        .chat-avatar {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-bubble {
+            background-color: #fff;
+            border-radius: 0.75rem;
+            padding: 0.4rem 0.6rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            min-width: 0;
+        }
+        .chat-bubble-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #0d6efd;
+        }
+        .chat-bubble-time {
+            font-size: 0.7rem;
+            color: #adb5bd;
+        }
+        .chat-message-actions {
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .chat-message:hover .chat-message-actions {
+            opacity: 1;
+        }
+        .chat-name-input {
+            max-width: 165px;
+            flex-shrink: 0;
+        }
+        .chat-send-btn {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .chat-textarea {
+            resize: none;
+            border-radius: 1.25rem;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.4;
         }
         .col-resizer {
             position: absolute;
@@ -347,7 +496,7 @@
                 </div>
 
                 <!-- Initiatives List -->
-                 <div id="tutorialTable" class="table-responsive d-none d-md-block">
+                 <div id="tutorialTable" ref="tableScrollEl" class="table-responsive d-none d-md-block" :class="{ 'has-hidden-columns': hasHiddenColumns }" @scroll="updateHiddenColumns">
                     <table class="table table-hover resizable-table">
                         <thead>
                             <tr>
@@ -360,6 +509,7 @@
                                 <th scope="col" @click="sortBy('category')" class="th-sortable" :style="{width: colWidths.category + 'px'}">分類 <i :class="sortIcon('category')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('category', $event)" @click.stop></span></th>
                                 <th scope="col" :style="{width: colWidths.content + 'px'}">内容<span class="col-resizer" @mousedown.stop.prevent="startResize('content', $event)" @click.stop></span></th>
                                 <th scope="col" @click="sortBy('actualAmount')" class="th-sortable text-end" :style="{width: colWidths.actualAmount + 'px'}">実績金額(円) <i :class="sortIcon('actualAmount')"></i><span class="col-resizer" @mousedown.stop.prevent="startResize('actualAmount', $event)" @click.stop></span></th>
+                                <th scope="col" class="col-sticky-right" :style="{width: colWidths.engagement + 'px'}"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -374,9 +524,23 @@
                                 <td><span class="badge" :class="getCategoryClass(item.category)">{{ item.category }}</span></td>
                                 <td class="col-wrap">{{ item.content }}</td>
                                 <td class="text-end">{{ formatCurrency(item.actualAmount) }}</td>
+                                <td class="col-sticky-right">
+                                    <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                                        <button v-for="r in reactionSummary(item.id).filter(r => r.count > 0)" :key="r.key" type="button"
+                                            class="btn btn-sm py-0 px-1 reaction-btn" :class="{ active: r.active }"
+                                            :title="r.label" :disabled="root.isLoading.value" @click.stop="root.toggleReaction(item.id, r.key)">
+                                            {{ r.emoji }}{{ r.count }}
+                                        </button>
+                                        <button type="button" class="btn btn-sm py-0 px-1 reaction-btn" title="リアクションを追加"
+                                            :disabled="root.isLoading.value" @click.stop="openReactionPicker($event, item.id)">
+                                            <i class="bi bi-emoji-smile"></i>
+                                        </button>
+                                    </div>
+                                    <span class="text-muted"><i class="bi bi-chat-dots"></i> {{ commentCount(item.id) }}</span>
+                                </td>
                             </tr>
                             <tr v-if="sortedInitiatives.length === 0">
-                                <td colspan="9" class="text-center">該当するデータがありません。</td>
+                                <td colspan="10" class="text-center">該当するデータがありません。</td>
                             </tr>
                         </tbody>
                     </table>
@@ -394,6 +558,20 @@
                             <div class="text-muted small mb-2">{{ item.company }} / {{ item.section }} ・ {{ item.name }}</div>
                             <p class="mb-2 small" style="white-space: normal;">{{ item.content }}</p>
                             <div class="text-end fw-bold">実績金額 {{ formatCurrency(item.actualAmount) }} 円</div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                                <div class="d-flex flex-wrap align-items-center gap-1">
+                                    <button v-for="r in reactionSummary(item.id).filter(r => r.count > 0)" :key="r.key" type="button"
+                                        class="btn btn-sm py-0 px-1 reaction-btn" :class="{ active: r.active }"
+                                        :title="r.label" :disabled="root.isLoading.value" @click.stop="root.toggleReaction(item.id, r.key)">
+                                        {{ r.emoji }}{{ r.count }}
+                                    </button>
+                                    <button type="button" class="btn btn-sm py-0 px-1 reaction-btn" title="リアクションを追加"
+                                        :disabled="root.isLoading.value" @click.stop="openReactionPicker($event, item.id)">
+                                        <i class="bi bi-emoji-smile"></i>
+                                    </button>
+                                </div>
+                                <span class="text-muted small"><i class="bi bi-chat-dots"></i> {{ commentCount(item.id) }}件</span>
+                            </div>
                         </div>
                     </div>
                     <div v-if="sortedInitiatives.length === 0" class="text-center text-muted py-4">該当するデータがありません。</div>
@@ -452,7 +630,7 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label for="formDate" class="form-label">実施日</label>
-                                            <clearable-input type="date" class="form-control" id="formDate" v-model="formInitiative.date" required></clearable-input>
+                                            <input type="date" class="form-control" id="formDate" v-model="formInitiative.date" required>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="formCategory" class="form-label">分類</label>
@@ -466,7 +644,67 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label for="formActualAmount" class="form-label">実績金額 (円)</label>
-                                            <clearable-input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="formActualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
+                                            <clearable-input type="text" inputmode="numeric" class="form-control" id="formActualAmount" v-model="actualAmountInput" @input="handleActualAmountInput" required></clearable-input>
+                                        </div>
+                                    </div>
+
+                                    <!-- リアクション・コメント（既存の実績を編集する場合のみ表示） -->
+                                    <div v-if="formModalMode === 'edit'" class="mt-4 pt-3 border-top">
+                                        <div class="mb-3 d-flex flex-wrap align-items-center gap-2">
+                                            <button v-for="r in reactionSummary(formModalId).filter(r => r.count > 0)" :key="r.key" type="button"
+                                                class="btn btn-sm reaction-btn" :class="{ active: r.active }"
+                                                :title="r.label" :disabled="root.isLoading.value" @click="root.toggleReaction(formModalId, r.key)">
+                                                {{ r.emoji }} {{ r.count }}
+                                            </button>
+                                            <button type="button" class="btn btn-sm reaction-btn" title="リアクションを追加"
+                                                :disabled="root.isLoading.value" @click="openReactionPicker($event, formModalId)">
+                                                <i class="bi bi-emoji-smile"></i>
+                                            </button>
+                                        </div>
+                                        <h6>コメント ({{ commentCount(formModalId) }})</h6>
+                                        <div class="chat-thread mb-3" style="max-height: 260px; overflow-y: auto;">
+                                            <div v-for="c in commentsFor(formModalId)" :key="c.id" class="chat-message">
+                                                <div class="chat-avatar" :style="{ backgroundColor: avatarColor(c.name) }">{{ (c.name || '?').charAt(0) }}</div>
+                                                <div class="chat-bubble flex-grow-1">
+                                                    <template v-if="editingCommentId === c.id">
+                                                        <div class="row g-2 mb-1">
+                                                            <div class="col-md-4">
+                                                                <clearable-input type="text" class="form-control form-control-sm" v-model="editCommentName"></clearable-input>
+                                                            </div>
+                                                            <div class="col-md-8">
+                                                                <textarea ref="editCommentTextareaEl" class="form-control form-control-sm chat-textarea" rows="1" v-model="editCommentText"
+                                                                    @keydown.ctrl.enter.prevent="saveCommentEdit" @keydown.meta.enter.prevent="saveCommentEdit"
+                                                                    @input="autoGrowTextarea"></textarea>
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-end">
+                                                            <button type="button" class="btn btn-sm btn-secondary me-1" @click="cancelCommentEdit">キャンセル</button>
+                                                            <button type="button" class="btn btn-sm btn-primary" :disabled="root.isLoading.value" @click="saveCommentEdit">保存</button>
+                                                        </div>
+                                                    </template>
+                                                    <template v-else>
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div>
+                                                                <span class="chat-bubble-name">{{ c.name }}</span>
+                                                                <span class="chat-bubble-time ms-2">{{ formatDateTime(c.createdAt) }}</span>
+                                                            </div>
+                                                            <div class="chat-message-actions flex-shrink-0">
+                                                                <button type="button" class="btn btn-sm btn-link p-0 me-2" title="編集" @click="startCommentEdit(c)"><i class="bi bi-pencil"></i></button>
+                                                                <button type="button" class="btn btn-sm btn-link p-0 text-danger" title="削除" @click="removeComment(c.id)"><i class="bi bi-trash"></i></button>
+                                                            </div>
+                                                        </div>
+                                                        <div style="white-space: pre-wrap;">{{ c.text }}</div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div v-if="commentsFor(formModalId).length === 0" class="text-muted small text-center py-3">まだコメントはありません。</div>
+                                        </div>
+                                        <div class="d-flex align-items-end gap-2">
+                                            <input type="text" class="form-control form-control-sm chat-name-input" placeholder="お名前" v-model="commentName" @keydown.enter.prevent="submitComment">
+                                            <textarea ref="commentTextareaEl" class="form-control chat-textarea" rows="1" placeholder="コメントを入力（Ctrl+Enterで送信）" v-model="commentText"
+                                                @keydown.ctrl.enter.prevent="submitComment" @keydown.meta.enter.prevent="submitComment"
+                                                @input="autoGrowTextarea"></textarea>
+                                            <button type="button" class="btn btn-primary rounded-circle chat-send-btn" :disabled="root.isLoading.value" @click="submitComment"><i class="bi bi-send-fill"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -478,6 +716,18 @@
                             </form>
                         </div>
                     </div>
+                </div>
+
+                <!-- リアクション選択ポップアップ -->
+                <div v-if="reactionPickerTargetId" style="position: fixed; inset: 0; z-index: 1055;" @click="closeReactionPicker"></div>
+                <div v-if="reactionPickerTargetId" class="card reaction-picker-popup p-1 d-flex flex-row flex-wrap gap-1"
+                    style="position: fixed; z-index: 1060; width: max-content;"
+                    :style="{ top: reactionPickerPos.top + 'px', left: reactionPickerPos.left + 'px' }" @click.stop>
+                    <button v-for="r in reactionSummary(reactionPickerTargetId)" :key="r.key" type="button"
+                        class="btn btn-sm reaction-btn" :class="{ active: r.active }"
+                        :title="r.label" :disabled="root.isLoading.value" @click="pickReaction(reactionPickerTargetId, r.key)">
+                        {{ r.emoji }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -750,6 +1000,42 @@
             } catch (e) { /* 無視 */ }
         };
 
+        // コメント投稿者の氏名も、直近入力した内容をこのブラウザに記憶しておく
+        const LAST_COMMENT_NAME_KEY = 'gyoseki-up:lastCommentName';
+        const loadLastCommentName = () => {
+            try {
+                return localStorage.getItem(LAST_COMMENT_NAME_KEY) || '';
+            } catch (e) {
+                return '';
+            }
+        };
+        const saveLastCommentName = (name) => {
+            try {
+                localStorage.setItem(LAST_COMMENT_NAME_KEY, name);
+            } catch (e) { /* 無視 */ }
+        };
+
+        // 共有ログインのためユーザーごとの区別が無く、「誰が押したか」はこのブラウザ固有の
+        // ランダムIDで識別する（リアクションの二重押下防止・押下解除に使う）。
+        const CLIENT_ID_KEY = 'gyoseki-up:clientId';
+        const getClientId = () => {
+            let id = localStorage.getItem(CLIENT_ID_KEY);
+            if (!id) {
+                id = crypto.randomUUID();
+                localStorage.setItem(CLIENT_ID_KEY, id);
+            }
+            return id;
+        };
+
+        // 実績に付けられるリアクションの絵文字一覧
+        const REACTION_TYPES = [
+            { key: 'good', emoji: '👍', label: 'いいね' },
+            { key: 'heart', emoji: '❤️', label: 'ハート' },
+            { key: 'surprised', emoji: '😲', label: 'びっくり' },
+            { key: 'laugh', emoji: '😂', label: '笑い' },
+            { key: 'clap', emoji: '👏', label: '拍手' },
+        ];
+
         // --- 初回チュートリアル ---
         const TUTORIAL_SEEN_KEY = 'gyoseki-up:tutorialSeen';
         const TUTORIAL_STEPS = [
@@ -900,7 +1186,7 @@
                 // --- 列幅のドラッグ調整 ---
                 const colWidths = ref({
                     no: 70, date: 110, company: 130, section: 130, name: 110, title: 180,
-                    category: 130, content: 320, actualAmount: 130
+                    category: 130, content: 320, actualAmount: 130, engagement: 130
                 });
 
                 // 実施日・社・課は、表示されているデータの長さに合わせて列幅を自動計算する
@@ -951,6 +1237,23 @@
                     document.removeEventListener('mousemove', onResizeMove);
                     document.removeEventListener('mouseup', onResizeEnd);
                 });
+
+                // リアクション・コメント列の下に隠れている列がある間だけ、固定列であることを示す影を出す
+                const tableScrollEl = ref(null);
+                const hasHiddenColumns = ref(false);
+                const updateHiddenColumns = () => {
+                    const el = tableScrollEl.value;
+                    if (!el) return;
+                    hasHiddenColumns.value = (el.scrollWidth - el.clientWidth - el.scrollLeft) > 1;
+                };
+                onMounted(() => {
+                    updateHiddenColumns();
+                    window.addEventListener('resize', updateHiddenColumns);
+                });
+                onBeforeUnmount(() => {
+                    window.removeEventListener('resize', updateHiddenColumns);
+                });
+                watch([root.initiatives, colWidths], () => nextTick(updateHiddenColumns), { deep: true });
 
                 // --- 取り組み実績 追加/編集モーダル ---
                 const formModalMode = ref(null); // null | 'add' | 'edit'
@@ -1042,9 +1345,14 @@
                     formModalId.value = item.id;
                     formInitiative.value = { ...item };
                     syncAmountInputs();
+                    commentName.value = loadLastCommentName();
+                    commentText.value = '';
+                    editingCommentId.value = null;
                 };
                 const closeFormModal = () => {
                     formModalMode.value = null;
+                    editingCommentId.value = null;
+                    reactionPickerTargetId.value = null;
                 };
                 const submitFormModal = async () => {
                     if (formModalMode.value === 'edit') {
@@ -1065,6 +1373,118 @@
                     if (!confirm('本当に削除しますか？')) return;
                     await root.deleteInitiative(formModalId.value);
                     closeFormModal();
+                };
+
+                // --- コメント・リアクション（編集モーダル内のセクション） ---
+                const commentName = ref('');
+                const commentText = ref('');
+
+                const commentsFor = (initiativeId) => root.comments.value
+                    .filter(c => c.initiativeId === initiativeId)
+                    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+
+                const commentCount = (initiativeId) => root.comments.value
+                    .filter(c => c.initiativeId === initiativeId).length;
+
+                const reactionSummary = (initiativeId) => {
+                    const clientId = getClientId();
+                    return REACTION_TYPES.map(rt => {
+                        const matching = root.reactions.value.filter(r => r.initiativeId === initiativeId && r.type === rt.key);
+                        return {
+                            ...rt,
+                            count: matching.length,
+                            active: matching.some(r => r.clientId === clientId),
+                        };
+                    });
+                };
+
+                const formatDateTime = (ts) => {
+                    if (!ts) return '';
+                    const date = ts.toDate ? ts.toDate() : new Date(ts);
+                    return date.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                };
+
+                // コメント投稿者ごとにアバターの色を変え、誰の発言か見分けやすくする
+                const AVATAR_COLORS = ['#0d6efd', '#6610f2', '#d63384', '#fd7e14', '#198754', '#20c997', '#0dcaf0'];
+                const avatarColor = (name) => {
+                    const str = name || '';
+                    let hash = 0;
+                    for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+                    return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+                };
+
+                // コメント欄はテキストエリアにして改行できるようにし、入力量に応じて自動で高さを伸ばす
+                // （送信後や編集終了時は高さをリセットする必要があるため、要素をrefで保持しておく）
+                const commentTextareaEl = ref(null);
+                const editCommentTextareaEl = ref(null);
+                const growTextarea = (el) => {
+                    if (!el) return;
+                    el.style.height = 'auto';
+                    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+                };
+                const autoGrowTextarea = (event) => growTextarea(event.target);
+
+                const submitComment = async () => {
+                    if (formModalMode.value !== 'edit' || !formModalId.value) return;
+                    const name = commentName.value.trim();
+                    const text = commentText.value.trim();
+                    if (!name || !text) return;
+                    await root.addComment(formModalId.value, name, text);
+                    saveLastCommentName(name);
+                    commentText.value = '';
+                    nextTick(() => growTextarea(commentTextareaEl.value));
+                };
+
+                // --- リアクション選択ポップアップ ---
+                // 一覧・カード・編集モーダルのいずれからでも同じポップアップを使い回すため、
+                // 対象の実績ID（reactionPickerTargetId）だけを切り替える。
+                const reactionPickerTargetId = ref(null);
+                const reactionPickerPos = ref({ top: 0, left: 0 });
+                // ポップアップの想定幅（絵文字5個分）。固定列など画面右端に近いボタンから開いた場合に
+                // 画面外へはみ出さないよう、右端に収まるよう左位置を調整するのに使う。
+                const REACTION_PICKER_WIDTH = 220;
+                const openReactionPicker = (event, targetId) => {
+                    if (reactionPickerTargetId.value === targetId) {
+                        reactionPickerTargetId.value = null;
+                        return;
+                    }
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const maxLeft = window.innerWidth - REACTION_PICKER_WIDTH - 8;
+                    const left = Math.max(8, Math.min(rect.left, maxLeft));
+                    reactionPickerPos.value = { top: rect.bottom + 4, left };
+                    reactionPickerTargetId.value = targetId;
+                };
+                const closeReactionPicker = () => {
+                    reactionPickerTargetId.value = null;
+                };
+                const pickReaction = (targetId, type) => {
+                    root.toggleReaction(targetId, type);
+                    closeReactionPicker();
+                };
+
+                const editingCommentId = ref(null);
+                const editCommentName = ref('');
+                const editCommentText = ref('');
+
+                const startCommentEdit = (c) => {
+                    editingCommentId.value = c.id;
+                    editCommentName.value = c.name;
+                    editCommentText.value = c.text;
+                    nextTick(() => growTextarea(editCommentTextareaEl.value));
+                };
+                const cancelCommentEdit = () => {
+                    editingCommentId.value = null;
+                };
+                const saveCommentEdit = async () => {
+                    const name = editCommentName.value.trim();
+                    const text = editCommentText.value.trim();
+                    if (!name || !text || !editingCommentId.value) return;
+                    await root.updateComment(editingCommentId.value, name, text);
+                    editingCommentId.value = null;
+                };
+                const removeComment = async (commentId) => {
+                    if (!confirm('このコメントを削除しますか？')) return;
+                    await root.deleteComment(commentId);
                 };
 
                 const sortBy = (column) => {
@@ -1125,10 +1545,14 @@
                     goToPage,
                     colWidths,
                     startResize,
+                    tableScrollEl,
+                    hasHiddenColumns,
+                    updateHiddenColumns,
                     resetFilters,
                     exportCsv,
                     formatDate,
                     formModalMode,
+                    formModalId,
                     formInitiative,
                     actualAmountInput,
                     handleActualAmountInput,
@@ -1140,6 +1564,29 @@
                     closeFormModal,
                     submitFormModal,
                     removeFormModal,
+                    commentName,
+                    commentText,
+                    commentsFor,
+                    commentCount,
+                    reactionSummary,
+                    formatDateTime,
+                    avatarColor,
+                    commentTextareaEl,
+                    editCommentTextareaEl,
+                    autoGrowTextarea,
+                    submitComment,
+                    reactionPickerTargetId,
+                    reactionPickerPos,
+                    openReactionPicker,
+                    closeReactionPicker,
+                    pickReaction,
+                    editingCommentId,
+                    editCommentName,
+                    editCommentText,
+                    startCommentEdit,
+                    cancelCommentEdit,
+                    saveCommentEdit,
+                    removeComment,
                     getCategoryClass: root.getCategoryClass,
                     formatCurrency: root.formatCurrency
                 };
@@ -1406,6 +1853,8 @@
                 const sections = ref([]);
                 const names = ref([]);
                 const categories = ref([]);
+                const comments = ref([]);
+                const reactions = ref([]);
                 const categoryGoals = ref({});
                 const defaultStart = ref('');
                 const defaultEnd = ref('');
@@ -1480,18 +1929,22 @@
                             if (!filterStart.value) filterStart.value = defaultStart.value;
                             if (!filterEnd.value) filterEnd.value = defaultEnd.value;
 
-                            const [inits, cos, secs, nms, cats] = await Promise.all([
+                            const [inits, cos, secs, nms, cats, cmts, rxns] = await Promise.all([
                                 queryInitiatives(filterStart.value, filterEnd.value),
                                 loadCollection('companies'),
                                 loadCollection('sections'),
                                 loadCollection('names'),
                                 loadCollection('categories'),
+                                loadCollection('comments'),
+                                loadCollection('reactions'),
                             ]);
                             initiatives.value = inits;
                             companies.value = cos;
                             sections.value = secs;
                             names.value = nms;
                             categories.value = cats;
+                            comments.value = cmts;
+                            reactions.value = rxns;
                         } catch (error) {
                             console.error('Error fetching bootstrap data:', error);
                         }
@@ -1544,6 +1997,26 @@
                             categories.value = await loadCollection('categories');
                         } catch (error) {
                             console.error('Error fetching categories:', error);
+                        }
+                    });
+                };
+
+                const fetchComments = async () => {
+                    await withLoading(async () => {
+                        try {
+                            comments.value = await loadCollection('comments');
+                        } catch (error) {
+                            console.error('Error fetching comments:', error);
+                        }
+                    });
+                };
+
+                const fetchReactions = async () => {
+                    await withLoading(async () => {
+                        try {
+                            reactions.value = await loadCollection('reactions');
+                        } catch (error) {
+                            console.error('Error fetching reactions:', error);
                         }
                     });
                 };
@@ -1634,6 +2107,65 @@
                             await fetchInitiatives();
                         } catch (error) {
                             console.error('Error deleting initiative:', error);
+                        }
+                    });
+                };
+
+                // --- コメント・リアクション ---
+                const addComment = async (initiativeId, name, text) => {
+                    await withLoading(async () => {
+                        try {
+                            await addDoc(colRef('comments'), {
+                                initiativeId, name, text, createdAt: serverTimestamp(),
+                            });
+                            await fetchComments();
+                        } catch (error) {
+                            console.error('Error adding comment:', error);
+                        }
+                    });
+                };
+
+                const updateComment = async (commentId, name, text) => {
+                    await withLoading(async () => {
+                        try {
+                            await updateDoc(doc(db, 'comments', commentId), { name, text });
+                            await fetchComments();
+                        } catch (error) {
+                            console.error('Error updating comment:', error);
+                        }
+                    });
+                };
+
+                const deleteComment = async (commentId) => {
+                    await withLoading(async () => {
+                        try {
+                            await deleteDoc(doc(db, 'comments', commentId));
+                            await fetchComments();
+                        } catch (error) {
+                            console.error('Error deleting comment:', error);
+                        }
+                    });
+                };
+
+                // 共有ログインのためリアクションはこのブラウザ固有のIDと紐づける。
+                // ドキュメントIDを実績ID・種類・端末IDの組み合わせにすることで、
+                // 同じ端末から同じ種類を二重に押せないようにし、再度押すと解除できるようにする。
+                const toggleReaction = async (initiativeId, type) => {
+                    await withLoading(async () => {
+                        try {
+                            const clientId = getClientId();
+                            const reactionId = `${initiativeId}_${type}_${clientId}`;
+                            const exists = reactions.value.some(r => r.id === reactionId);
+                            if (exists) {
+                                await deleteDoc(doc(db, 'reactions', reactionId));
+                            } else {
+                                await setDoc(doc(db, 'reactions', reactionId), {
+                                    initiativeId, type, clientId, createdAt: serverTimestamp(),
+                                });
+                            }
+                            await fetchReactions();
+                        } catch (error) {
+                            console.error('Error toggling reaction:', error);
                         }
                     });
                 };
@@ -1906,6 +2438,8 @@
                         sections.value = [];
                         names.value = [];
                         categories.value = [];
+                        comments.value = [];
+                        reactions.value = [];
                     }
                 });
 
@@ -1916,6 +2450,8 @@
                       sections,
                       names,
                       categories,
+                      comments,
+                      reactions,
                       categoryGoals,
                       defaultStart,
                       defaultEnd,
@@ -1929,6 +2465,12 @@
                       fetchSections,
                       fetchNames,
                       fetchCategories,
+                      fetchComments,
+                      fetchReactions,
+                      addComment,
+                      updateComment,
+                      deleteComment,
+                      toggleReaction,
                       addCompany,
                       addSection,
                       addName,
