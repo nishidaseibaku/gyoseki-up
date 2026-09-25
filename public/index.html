@@ -145,7 +145,7 @@
             content: '';
             position: absolute;
             top: -6px;
-            left: 16px;
+            right: 16px;
             width: 0;
             height: 0;
             border-left: 6px solid transparent;
@@ -1481,8 +1481,10 @@
                         return;
                     }
                     const rect = event.currentTarget.getBoundingClientRect();
+                    // 一覧のリアクション列は画面右端に固定されているため、ボタンの右端を基準に
+                    // 左側へ吹き出しを開く（右端基準にすることで、右に開いて画面外にはみ出すのを防ぐ）。
                     const maxLeft = window.innerWidth - REACTION_PICKER_WIDTH - 8;
-                    const left = Math.max(8, Math.min(rect.left, maxLeft));
+                    const left = Math.max(8, Math.min(rect.right - REACTION_PICKER_WIDTH, maxLeft));
 
                     let top = rect.bottom + 4;
                     let openUpward = false;
